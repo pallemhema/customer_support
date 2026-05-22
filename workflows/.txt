@@ -1,0 +1,8 @@
+i want ui with 
+
+side bar where all previous conversions need to be shown new chat new session should open if open previous sessions all the messages should appear and i can continue chat there
+and as usal chating input all chtings should appear thats it a simple ui 
+
+past history need to be retrieved from the mongodb history_collections 
+
+if previous session is opened all those messages should append to the state and continue chating like that 

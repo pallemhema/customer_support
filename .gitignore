@@ -1,0 +1,86 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+
+# Virtual env
+venv/
+env/
+.venv/
+
+# Environment
+.env
+.env.*
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Streamlit
+.streamlit/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
+
+# Jetbrains
+.idea/
+
+# Mongo dump
+*.bson
+dump/
+
+# Models
+models/
+weights/
+checkpoints/
+*.bin
+*.pt
+*.pth
+*.safetensors
+
+# PDFs generated
+reports/
+generated/
+exports/
+*.pdf
+
+# Cache
+.cache/
+.pytest_cache/
+.mypy_cache/
+
+# Build
+build/
+dist/
+*.egg-info/
+
+# LangGraph
+langgraph_storage/
+memory/
+
+# Uploads
+uploads/
+temp/
+tmp/
+
+# Media
+*.mp4
+*.avi
+*.mov
+*.zip
+*.tar
+*.gz
+
+# Database local
+*.db
+*.sqlite
+*.sqlite3
