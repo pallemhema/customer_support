@@ -141,13 +141,19 @@ def validate_intent(
 
         "track_followup",
 
-        "get_orders",
-        "order_details",
-        "greeting_intent",
         "customer_profile",
+
+        "list_customer_orders",
+
+        "order_details",
+
         "create_order",
 
-    "cancel_order"
+        "cancel_order",
+
+        "get_orders",
+
+        "greeting_intent",
 
 
     ]

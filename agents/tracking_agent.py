@@ -2,30 +2,16 @@ from langchain.agents import (
 create_agent
 )
 
-from agents.llm import (
-get_llm
-)
+from agents.llm import (get_llm)
 
-from tools.tracking_tools import (
-
-track_ticket,
-
-track_order,
-
-track_refund,
-
-
-
-get_customer_profile
-
-)
+from tools.tracking_tools import (track_ticket,track_order,track_refund,get_customer_profile)
 
 
 llm = get_llm()
 
 from langchain.agents import create_agent
-tracking_agent = create_agent(
 
+tracking_agent = create_agent(
 model=llm,
 
 tools=[
@@ -183,12 +169,6 @@ HIGH
 
 Assigned Team:
 Finance
-
--------------------------------------
-
-
-
--------------------------------------
 
 -------------------------------------
 CUSTOMER PROFILE RULES
@@ -435,7 +415,6 @@ Login instructions
 
 Contact support
 
-Order history steps
 
 Always use tool result.
 

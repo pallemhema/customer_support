@@ -1,125 +1,328 @@
 from schemas.supervisor_state_schema import SupportState
 from validators.intent_validator import validate_intent
+# def supervisor_node(
+# state:SupportState
+# ):
+
+#     query = state[
+#         "query"
+#     ].lower()
+
+#     intent = state.get(
+#         "intent",
+#         ""
+#     ).lower()
+
+#     priority = state.get(
+#         "priority",
+#         "LOW"
+#     ).upper()
+
+#     print(
+#     "SUPERVISOR NODE Execution"
+#     )
+#     order_intents = [
+
+#     "create_order",
+
+#     "cancel_order",
+#     "list_customer_orders",
+#     "list orders",
+
+#         "my orders",
+
+#         "show orders",
+
+#     ]
+
+#     tracking_intents=[
+
+#         "track_ticket",
+
+#         "track_order",
+
+#         "track_complaint",
+
+#         "track_refund",
+
+#         "track_chargeback",
+
+#         "track_followup",
+
+#         "list_orders",
+
+#         "order_details",
+
+#         "customer_profile",
+        
+
+#     ]
+
+
+#     tracking_keywords=[
+#         "delivery status",
+
+#         "refund status",
+
+#         "track order",
+
+#         "order details"
+
+#     ]
+
+
+#     escalation_keywords=[
+
+#         "refund failed",
+
+#         "refund pending",
+
+#         "refund not received",
+
+#         "money deducted",
+
+#         "duplicate payment",
+
+#         "fraud",
+
+#         "hacked",
+
+#         "unauthorized",
+
+#         "payment failed",
+
+#         "account compromised"
+
+#     ]
+
+
+#     escalation_intents=[
+
+#         "refund_issue",
+
+#         "payment_issue",
+
+#         "security_issue",
+
+#         "account_recovery"
+
+#     ]
+
+#     if intent == "greeting_intent":
+#         return { "route":
+#             "response"
+#     }
+
+#     if intent in order_intents:
+
+#         return {
+
+#         "route":"order"
+
+#         }
+
+
+
+#     if intent in tracking_intents:
+
+#         return {
+
+#         "route":
+#         "tracking"
+
+#         }
+
+
+#     for word in tracking_keywords:
+
+#         if word in query:
+
+#             return {
+
+#             "route":
+#             "tracking"
+
+#             }
+
+
+#     if priority in [
+
+#         "HIGH",
+
+#         "CRITICAL"
+
+#     ]:
+
+#         return {
+
+#         "route":
+#         "escalation"
+
+#         }
+
+
+#     if intent in escalation_intents:
+
+#         return {
+
+#         "route":
+#         "escalation"
+
+#         }
+
+
+#     for word in escalation_keywords:
+
+#         if word in query:
+
+#             return {
+
+#             "route":
+#             "escalation"
+
+#             }
+
+
+#     return {
+
+#     "route":
+#     "normal"
+
+#     }
+
+from schemas.supervisor_state_schema import SupportState
+
 def supervisor_node(
 state:SupportState
 ):
 
-    query = state[
-        "query"
-    ].lower()
+    query = state.get(
+    "query",
+    ""
+    ).lower()
 
     intent = state.get(
-        "intent",
-        ""
+    "intent",
+    ""
     ).lower()
 
     priority = state.get(
-        "priority",
-        "LOW"
+    "priority",
+    "LOW"
     ).upper()
 
     print(
     "SUPERVISOR NODE Execution"
     )
+
+    # -------------------------
+    # GREETING
+    # -------------------------
+
+    if intent == "greeting_intent":
+
+        return {
+
+        "route":
+        "response"
+
+        }
+
+
+    # -------------------------
+    # ORDER ROUTES
+    # -------------------------
+
     order_intents = [
 
     "create_order",
 
-    "cancel_order"
+    "cancel_order",
+
+    "list_customer_orders",
+
+    "order_purchase",
+
+    "buy_product",
+
+    "place_order"
 
     ]
-
-    tracking_intents=[
-
-        "track_ticket",
-
-        "track_order",
-
-        "track_complaint",
-
-        "track_refund",
-
-        "track_chargeback",
-
-        "track_followup",
-
-        "list_orders",
-        "order_details",
-        "customer_profile"
-
-    ]
-
-
-    tracking_keywords=[
-
-        "list orders",
-
-        "my orders",
-
-        "show orders",
-
-        "delivery status",
-
-        "refund status",
-
-        "track order",
-
-        "order details"
-
-    ]
-
-
-    escalation_keywords=[
-
-        "refund failed",
-
-        "refund pending",
-
-        "refund not received",
-
-        "money deducted",
-
-        "duplicate payment",
-
-        "fraud",
-
-        "hacked",
-
-        "unauthorized",
-
-        "payment failed",
-
-        "account compromised"
-
-    ]
-
-
-    escalation_intents=[
-
-        "refund_issue",
-
-        "payment_issue",
-
-        "security_issue",
-
-        "account_recovery"
-
-    ]
-
-    if intent == "greeting_intent":
-        return { "route":
-            "response"
-    }
 
     if intent in order_intents:
 
         return {
 
-        "route":"order"
+        "route":
+        "order"
 
         }
 
 
+    order_keywords = [
+
+    "buy",
+
+    "purchase",
+
+    "place order",
+
+    "create order",
+
+    "cancel order",
+
+    "my orders",
+
+    "show orders",
+
+    "list orders",
+
+    "abort order",
+
+    "checkout"
+
+    ]
+
+    if any(
+    word in query
+    for word in order_keywords
+    ):
+
+        return {
+
+        "route":
+        "order"
+
+        }
+
+
+    # -------------------------
+    # TRACKING ROUTES
+    # -------------------------
+
+    tracking_intents = [
+
+    "track_ticket",
+
+    "track_order",
+
+    "track_complaint",
+
+    "track_refund",
+
+    "track_chargeback",
+
+    "track_followup",
+
+    "order_details",
+
+    "customer_profile",
+
+    "delivery_status",
+
+    "refund_status"
+
+    ]
 
     if intent in tracking_intents:
 
@@ -131,23 +334,89 @@ state:SupportState
         }
 
 
-    for word in tracking_keywords:
+    tracking_keywords = [
 
-        if word in query:
+    "track order",
 
-            return {
+    "delivery status",
 
-            "route":
-            "tracking"
+    "refund status",
 
-            }
+    "where is my order",
+
+    "order details",
+
+    "track refund",
+
+    "ticket status",
+
+    "profile",
+
+    "customer details"
+
+    ]
+
+    if any(
+    word in query
+    for word in tracking_keywords
+    ):
+
+        return {
+
+        "route":
+        "tracking"
+
+        }
+
+
+    # -------------------------
+    # ESCALATION
+    # -------------------------
+
+    escalation_intents = [
+
+    "refund_issue",
+
+    "payment_issue",
+
+    "security_issue",
+
+    "account_recovery",
+
+    "account_issue"
+
+    ]
+
+    escalation_keywords = [
+
+    "refund failed",
+
+    "refund pending",
+
+    "refund not received",
+
+    "money deducted",
+
+    "duplicate payment",
+
+    "fraud",
+
+    "payment failed",
+
+    "unauthorized",
+
+    "account hacked",
+
+    "account compromised"
+
+    ]
 
 
     if priority in [
 
-        "HIGH",
+    "HIGH",
 
-        "CRITICAL"
+    "CRITICAL"
 
     ]:
 
@@ -169,17 +438,22 @@ state:SupportState
         }
 
 
-    for word in escalation_keywords:
+    if any(
+    word in query
+    for word in escalation_keywords
+    ):
 
-        if word in query:
+        return {
 
-            return {
+        "route":
+        "escalation"
 
-            "route":
-            "escalation"
+        }
 
-            }
 
+    # -------------------------
+    # DEFAULT
+    # -------------------------
 
     return {
 
@@ -187,4 +461,3 @@ state:SupportState
     "normal"
 
     }
-

@@ -82,15 +82,19 @@ track_chargeback
 
 track_followup
 
-get_orders
+greeting_intent
 
-list_orders
+customer_profile
 
-list_orders
+list_customer_orders
 
 order_details
 
-customer_profile
+create_order
+
+cancel_order
+
+
 
 ------------------------------------------------
 GENERAL QUERY RULE
@@ -778,6 +782,8 @@ Available intents:
 create_order
 
 cancel_order
+
+list_customer_orders
 ------------------------------------------------
 MULTI PRODUCT ORDER RULE
 ------------------------------------------------
@@ -1064,6 +1070,335 @@ If cancellation is urgent and shipment already started:
 priority:
 
 HIGH
+
+------------------------------------------------
+LIST CUSTOMER ORDERS
+------------------------------------------------
+
+Intent:
+
+list_customer_orders
+
+Use when customer asks:
+
+Show my orders
+
+List orders
+
+My purchases
+
+Order history
+
+Recent orders
+
+Delivered orders
+
+Cancelled orders
+
+Shipped orders
+
+Orders out for delivery
+
+Today's orders
+
+Orders from last week
+
+Show iPhone orders
+
+Show AirPods purchases
+
+Examples:
+
+User:
+Show my orders
+
+Output:
+
+{
+"intent":"list_customer_orders",
+"priority":"LOW"
+}
+
+User:
+List my purchases
+
+Output:
+
+{
+"intent":"list_customer_orders",
+"priority":"LOW"
+}
+
+User:
+Show delivered orders
+
+Output:
+
+{
+"intent":"list_customer_orders",
+"priority":"LOW"
+}
+
+User:
+Show cancelled orders
+
+Output:
+
+{
+"intent":"list_customer_orders",
+"priority":"LOW"
+}
+
+User:
+Show shipped orders
+
+Output:
+
+{
+"intent":"list_customer_orders",
+"priority":"LOW"
+}
+
+User:
+Show my iPhone orders
+
+Output:
+
+{
+"intent":"list_customer_orders",
+"priority":"LOW"
+}
+
+IMPORTANT:
+
+Order viewing
+
+Order filtering
+
+Order history
+
+Product order lookup
+
+Delivery completion lookup
+
+ALL use:
+
+list_customer_orders
+
+Never classify as:
+
+general_query
+
+track_order
+
+customer_profile
+
+------------------------------------------------
+ORDER DETAILS
+------------------------------------------------
+
+Intent:
+
+order_details
+
+Use when customer asks:
+
+Show order details
+
+Full order info
+
+Everything in order
+
+Order summary
+
+Complete order
+
+Items in order
+
+Examples:
+
+User:
+Show details of order ord001
+
+Output:
+
+{
+"intent":"order_details",
+"priority":"LOW"
+}
+
+User:
+Give full order info
+
+Output:
+
+{
+"intent":"order_details",
+"priority":"LOW"
+}
+
+User:
+Show everything in order ord002
+
+Output:
+
+{
+"intent":"order_details",
+"priority":"LOW"
+}
+
+------------------------------------------------
+ORDER PRIORITY LOGIC
+------------------------------------------------
+
+create_order
+
+LOW
+
+Examples:
+
+Buy iPhone
+
+Purchase laptop
+
+Place order
+
+----------------
+
+list_customer_orders
+
+LOW
+
+Examples:
+
+Show delivered orders
+
+My purchases
+
+Recent orders
+
+----------------
+
+order_details
+
+LOW
+
+Examples:
+
+Show order info
+
+Full order details
+
+----------------
+
+cancel_order
+
+MEDIUM
+
+Examples:
+
+Cancel order
+
+Stop shipment
+
+Abort purchase
+
+----------------
+
+Urgent cancellation:
+
+HIGH
+
+Examples:
+
+Cancel immediately
+
+Stop delivery now
+
+Shipment started cancel order
+
+Package already moving cancel it
+
+Out for delivery cancel
+
+----------------
+
+Cancellation after delivery:
+
+HIGH
+
+Examples:
+
+Cancel delivered order
+
+Cancel shipped order
+
+Stop delivered item
+
+These are complex cases.
+
+Still classify:
+
+cancel_order
+
+priority:
+
+HIGH
+
+------------------------------------------------
+GREETING + ORDER RULES
+------------------------------------------------
+
+Greeting + order lookup
+
+NOT greeting
+
+Examples:
+
+User:
+
+Hi show my delivered orders
+
+Output:
+
+{
+"intent":"list_customer_orders",
+"priority":"LOW"
+}
+
+User:
+
+Hello show order ord001
+
+Output:
+
+{
+"intent":"order_details",
+"priority":"LOW"
+}
+
+User:
+
+Hi cancel order ord001 immediately
+
+Output:
+
+{
+"intent":"cancel_order",
+"priority":"HIGH"
+}
+
+User:
+
+Hello show my iPhone purchases
+
+Output:
+
+{
+"intent":"list_customer_orders",
+"priority":"LOW"
+}
+
 
 ------------------------------------------------
 PRIORITY

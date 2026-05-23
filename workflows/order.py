@@ -9,9 +9,7 @@ def order_node(state:SupportState):
 
     {
 
-    "messages":[("user",
-
-    f"""
+    "messages":[("user",f"""
 
     Customer:
 

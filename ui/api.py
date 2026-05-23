@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from workflows.peer_to_peer import support_graph
 from database.mongo import history_collection
+from workflows.graph import support_graph
 from langgraph.types import Command
 
 app = FastAPI()
@@ -64,20 +64,20 @@ def resume(data:ResumeRequest):
 
     result = support_graph.invoke(
 
-        Command(
-            resume=data.answer
-        ),
+    Command(
+    resume=data.answer
+    ),
 
-        config={
+    config={
 
-        "configurable":{
+    "configurable":{
 
-        "thread_id":
-        data.thread_id
+    "thread_id":
+    data.thread_id
 
-        }
+    }
 
-        }
+    }
 
     )
 
@@ -86,16 +86,29 @@ def resume(data:ResumeRequest):
     result
     )
 
-    return {
+
+    response = {
 
     "response":
-
     result.get(
-        "response"
+    "response"
     )
 
     }
 
+
+    # IMPORTANT
+
+    if "__interrupt__" in result:
+
+        response[
+        "__interrupt__"
+        ] = result[
+        "__interrupt__"
+        ]
+
+
+    return response
 @app.get("/sessions/{customer_id}")
 def get_sessions(customer_id:str):
 

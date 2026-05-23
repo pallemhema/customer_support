@@ -6,221 +6,250 @@ import time
 API = "http://localhost:8000"
 
 st.set_page_config(
-    page_title="Customer Support",
-    layout="wide"
+page_title="Customer Support",
+layout="wide"
 )
 
-# -------------------------
+# --------------------------------
 # SESSION STATE
-# -------------------------
+# --------------------------------
 
-if "customer_id" not in st.session_state:
-    st.session_state.customer_id = "cust001"
+defaults = {
 
-if "last_customer" not in st.session_state:
-    st.session_state.last_customer = (
-        st.session_state.customer_id
-    )
+"customer_id":"cust001",
 
-if "session_id" not in st.session_state:
+"last_customer":"cust001",
 
-    st.session_state.session_id = str(
-        uuid.uuid4()
-    )
+"session_id":str(
+uuid.uuid4()
+),
+
+"messages":[],
+
+"interrupt":None,
+
+"loading":False,
+
+# NEW
+"processing":False
+
+}
+
+for k,v in defaults.items():
+
+    if k not in st.session_state:
+
+        st.session_state[k] = v
+
 
 if "thread_id" not in st.session_state:
 
     st.session_state.thread_id = (
 
-        f"{st.session_state.customer_id}_"
+    f"{st.session_state.customer_id}_"
 
-        f"{st.session_state.session_id}"
+    f"{st.session_state.session_id}"
 
     )
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
 
-if "interrupt" not in st.session_state:
-    st.session_state.interrupt = None
+# --------------------------------
+# STREAM TEXT
+# --------------------------------
+
+def stream_text(
+text,
+placeholder
+):
+
+    if not text:
+
+        return
+
+    current=""
+
+    for ch in text:
+
+        current += ch
+
+        placeholder.markdown(
+        current
+        )
+
+        time.sleep(
+        0.01
+        )
 
 
-# -------------------------
+# --------------------------------
 # SIDEBAR
-# -------------------------
+# --------------------------------
 
 with st.sidebar:
 
     st.title(
-        "🛎 Customer Support"
+    "🛎 Customer Support"
     )
 
     customer = st.text_input(
-        "Customer ID",
-        st.session_state.customer_id
+    "Customer ID",
+    st.session_state.customer_id
     )
 
-    st.session_state.customer_id = customer
-
-    # ---------------------
-    # CUSTOMER SWITCH
-    # ---------------------
 
     if customer != st.session_state.last_customer:
 
         st.session_state.last_customer = customer
 
-        st.session_state.messages = []
+        st.session_state.customer_id = customer
 
-        st.session_state.interrupt = None
+        st.session_state.messages=[]
+
+        st.session_state.interrupt=None
+
+        st.session_state.loading=False
 
         try:
 
             sessions = requests.get(
-                f"{API}/sessions/{customer}"
+f"{API}/sessions/{customer}"
             ).json()
 
         except:
 
-            sessions = []
+            sessions=[]
 
         if sessions:
 
-            latest = sessions[0]
+            latest=sessions[0]
 
-            st.session_state.session_id = (
-                latest["session_id"]
-            )
+            st.session_state.session_id=latest[
+            "session_id"
+            ]
 
-            st.session_state.thread_id = (
-                latest["thread_id"]
-            )
+            st.session_state.thread_id=latest[
+            "thread_id"
+            ]
 
-            history = requests.get(
+            history=requests.get(
 f"{API}/history/{latest['thread_id']}"
             ).json()
 
-            st.session_state.messages = (
+            st.session_state.messages=(
 
-                history.get(
-                    "messages",
-                    []
-                )
+            history.get(
+            "messages",
+            []
+            )
 
             )
 
         else:
 
-            sid = str(
-                uuid.uuid4()
-            )
-
-            st.session_state.session_id = sid
-
-            st.session_state.thread_id = (
-
-                f"{customer}_{sid}"
-
-            )
-
-            st.session_state.messages = []
-
-        st.rerun()
-
-    # ---------------------
-    # NEW CHAT
-    # ---------------------
-
-    if st.button(
-        "➕ New Chat",
-        use_container_width=True
-    ):
-
-        sid = str(
+            sid=str(
             uuid.uuid4()
-        )
+            )
 
-        st.session_state.session_id = sid
+            st.session_state.session_id=sid
 
-        st.session_state.thread_id = (
+            st.session_state.thread_id=(
 
             f"{customer}_{sid}"
 
-        )
-
-        st.session_state.messages = []
-
-        st.session_state.interrupt = None
+            )
 
         st.rerun()
+
+
+    if st.button(
+    "➕ New Chat",
+    use_container_width=True
+    ):
+
+        sid=str(
+        uuid.uuid4()
+        )
+
+        st.session_state.session_id=sid
+
+        st.session_state.thread_id=(
+
+        f"{customer}_{sid}"
+
+        )
+
+        st.session_state.messages=[]
+
+        st.session_state.interrupt=None
+
+        st.session_state.loading=False
+
+        st.rerun()
+
 
     st.divider()
 
     st.subheader(
-        "💬 Sessions"
+    "💬 Sessions"
     )
 
     try:
 
-        sessions = requests.get(
+        sessions=requests.get(
 f"{API}/sessions/{customer}"
         ).json()
 
     except:
 
-        sessions = []
+        sessions=[]
+
 
     for s in sessions:
 
-        label = s.get(
-            "title",
-            "New Chat"
+        label=s.get(
+        "title",
+        "New Chat"
         )
 
-        if len(label) > 35:
+        if len(label)>35:
 
-            label = (
-                label[:35]
-                + "..."
-            )
+            label=label[:35]+"..."
 
         if st.button(
-            label,
-            key=s[
-                "thread_id"
-            ],
-            use_container_width=True
+        label,
+        key=s["thread_id"],
+        use_container_width=True
         ):
 
-            history = requests.get(
+            history=requests.get(
 f"{API}/history/{s['thread_id']}"
             ).json()
 
-            st.session_state.thread_id = (
-                s["thread_id"]
+            st.session_state.thread_id=s[
+            "thread_id"
+            ]
+
+            st.session_state.session_id=s[
+            "session_id"
+            ]
+
+            st.session_state.messages=(
+
+            history.get(
+            "messages",
+            []
             )
 
-            st.session_state.session_id = (
-                s["session_id"]
             )
 
-            st.session_state.messages = (
-
-                history.get(
-                    "messages",
-                    []
-                )
-
-            )
-
-            st.session_state.interrupt = None
+            st.session_state.interrupt=None
 
             st.rerun()
 
 
-# -------------------------
-# CHAT AREA
-# -------------------------
+# --------------------------------
+# CHAT
+# --------------------------------
 
 st.title(
 "🤖 Customer Support Assistant"
@@ -229,124 +258,156 @@ st.title(
 for msg in st.session_state.messages:
 
     with st.chat_message(
-        msg["role"]
+    msg["role"]
     ):
 
         st.markdown(
-            msg["content"]
+        msg["content"]
         )
 
 
-# -------------------------
-# CHAT INPUT
-# -------------------------
+# --------------------------------
+# INPUT LOCK
+# --------------------------------
 
-query = st.chat_input(
-"Ask your issue..."
+disabled=(
+
+st.session_state.processing
+
+or
+
+st.session_state.loading
+
+or
+
+st.session_state.interrupt
+is not None
+
 )
 
+placeholder=(
+
+"⏳ Processing request..."
+
+if disabled
+
+else
+
+"Ask something..."
+
+)
+
+query=st.chat_input(
+
+placeholder,
+
+disabled=disabled
+
+)
+
+
+
+
+# --------------------------------
+# SEND QUERY
+# --------------------------------
 if query:
 
-    user_msg = {
+    # SHOW QUERY FIRST
 
-        "role":
-        "user",
+    st.session_state.messages.append({
 
-        "content":
-        query
+    "role":
+    "user",
+
+    "content":
+    query
+
+    })
+
+    # STORE FOR API CALL
+
+    st.session_state.pending_query = query
+
+    # LOCK INPUT
+
+    st.session_state.processing = True
+
+    st.session_state.loading = True
+
+    st.rerun()
+
+# --------------------------------
+# PROCESS PENDING QUERY
+# --------------------------------
+
+if (
+
+st.session_state.processing
+
+and
+
+"pending_query"
+in st.session_state
+
+):
+
+    query = st.session_state.pending_query
+
+    del st.session_state.pending_query
+
+
+    result = requests.post(
+
+    f"{API}/chat",
+
+    json={
+
+    "customer_id":
+    st.session_state.customer_id,
+
+    "session_id":
+    st.session_state.session_id,
+
+    "thread_id":
+    st.session_state.thread_id,
+
+    "query":
+    query
 
     }
 
-    st.session_state.messages.append(
-        user_msg
-    )
+    ).json()
 
-    with st.chat_message(
-        "user"
-    ):
 
-        st.markdown(
-            query
-        )
+    st.session_state.loading=False
 
-    response_box = st.empty()
 
-    try:
-
-        result = requests.post(
-
-f"{API}/chat",
-
-json={
-
-"customer_id":
-st.session_state.customer_id,
-
-"session_id":
-st.session_state.session_id,
-
-"thread_id":
-st.session_state.thread_id,
-
-"query":
-query
-
-}
-
-        ).json()
-
-    except Exception as e:
-
-        st.error(
-            str(e)
-        )
-
-        st.stop()
-
-    # ---------------------
     # INTERRUPT
-    # ---------------------
 
     if "__interrupt__" in result:
 
-        st.session_state.interrupt = (
+        st.session_state.processing=False
 
-            result[
-                "__interrupt__"
-            ][0]
+        st.session_state.interrupt=(
+
+        result[
+        "__interrupt__"
+        ][0]
 
         )
 
         st.rerun()
 
-    # ---------------------
-    # NORMAL RESPONSE
-    # ---------------------
 
-    else:
+    text=result.get(
+    "response"
+    ) or ""
 
-        text = result.get(
-            "response",
-            "No response"
-        )
 
-        current = ""
+    if text:
 
-        for ch in text:
-
-            current += ch
-
-            response_box.markdown(
-                current
-            )
-
-            time.sleep(
-                0.01
-            )
-
-        st.session_state.messages.append(
-
-        {
+        st.session_state.messages.append({
 
         "role":
         "assistant",
@@ -354,173 +415,211 @@ query
         "content":
         text
 
-        }
-
-        )
+        })
 
 
-# -------------------------
-# HITL PANEL
-# -------------------------
+    st.session_state.processing=False
+
+    st.rerun()
+# --------------------------------
+# HITL
+# --------------------------------
 
 if st.session_state.interrupt:
 
     intr = st.session_state.interrupt
 
-    data = intr.get(
-        "value",
-        {}
+    try:
+
+        if hasattr(
+        intr,
+        "value"
+        ):
+
+            data = intr.value
+
+        elif isinstance(
+        intr,
+        dict
+        ):
+
+            data = intr.get(
+            "value",
+            intr
+            )
+
+        else:
+
+            data={}
+
+    except:
+
+        data={}
+
+
+    question=str(
+    data.get(
+    "question",
+    "Approval required"
+    )
     )
 
-    question = data.get(
-        "question",
-        "Approval needed"
+    action=str(
+    data.get(
+    "action",
+    ""
+    )
     )
 
     st.divider()
 
+    st.markdown(
+    "### 🔐 Human Approval Required"
+    )
+
+    if action:
+
+        st.caption(
+        f"Action: {action}"
+        )
+
+    st.markdown(
+    question
+    )
+    def resume_flow(answer):
+
+        st.session_state.processing=True
+
+        st.session_state.loading=True
+
+        response=requests.post(
+
+        f"{API}/resume",
+
+        json={
+
+        "thread_id":
+        st.session_state.thread_id,
+
+        "answer":
+        answer
+
+        }
+
+        )
+
+        result=response.json()
+
+        st.session_state.loading=False
+
+        print(
+        "Resume result:",
+        result
+        )
+
+
+        if "__interrupt__" in result:
+
+            st.session_state.processing=False
+
+            st.session_state.interrupt=(
+
+            result[
+            "__interrupt__"
+            ][0]
+
+            )
+
+            return
+
+
+        st.session_state.interrupt=None
+
+        text=result.get(
+        "response"
+        ) or ""
+
+        if text:
+
+            st.session_state.messages.append({
+
+            "role":"assistant",
+
+            "content":
+            text
+
+            })
+
+        st.session_state.processing=False
+
+
+
+
+    if action == "ADDRESS_CONFIRMATION":
+
+        address=st.text_area(
+        "New shipping address"
+        )
+
+        c1,c2=st.columns(2)
+
+        with c1:
+
+            if st.button(
+            "Use Saved Address"
+            ):
+
+                resume_flow(
+                "YES"
+                )
+
+        with c2:
+
+            if st.button(
+            "Use New Address"
+            ):
+
+                resume_flow(
+                address
+                )
+
+    else:
+
+        c1,c2=st.columns(2)
+
+        with c1:
+
+            if st.button(
+            "YES"
+            ):
+
+                resume_flow(
+                "YES"
+                )
+
+        with c2:
+
+            if st.button(
+            "NO"
+            ):
+
+                resume_flow(
+                "NO"
+                )
+
+
+# --------------------------------
+# LOADING
+# --------------------------------
+
+if st.session_state.processing:
+
     st.info(
-
-f"""
-🔐 Human Approval Required
-
-{question}
-
-Select action below
-"""
-
+    "⏳ Request in progress. Please wait..."
     )
 
-    col1,col2,col3 = st.columns(
-        [1,1,5]
+elif st.session_state.loading:
+
+    st.info(
+    "Processing..."
     )
-
-    # ---------------------
-    # YES
-    # ---------------------
-
-    with col1:
-
-        if st.button(
-            "✅ YES"
-        ):
-
-            result = requests.post(
-
-f"{API}/resume",
-
-json={
-
-"thread_id":
-st.session_state.thread_id,
-
-"answer":
-"YES"
-
-}
-
-            ).json()
-
-            st.session_state.interrupt = None
-
-            text = result.get(
-                "response",
-                "Approved"
-            )
-
-            placeholder = st.empty()
-
-            current = ""
-
-            for ch in text:
-
-                current += ch
-
-                placeholder.markdown(
-                    current
-                )
-
-                time.sleep(
-                    0.01
-                )
-
-            st.session_state.messages.append(
-
-            {
-
-            "role":
-            "assistant",
-
-            "content":
-            text
-
-            }
-
-            )
-
-            st.rerun()
-
-    # ---------------------
-    # NO
-    # ---------------------
-
-    with col2:
-
-        if st.button(
-            "❌ NO"
-        ):
-
-            result = requests.post(
-
-f"{API}/resume",
-
-json={
-
-"thread_id":
-st.session_state.thread_id,
-
-"answer":
-"NO"
-
-}
-
-            ).json()
-
-            st.session_state.interrupt = None
-
-            text = result.get(
-                "response",
-                "Rejected"
-            )
-
-            placeholder = st.empty()
-
-            current = ""
-
-            for ch in text:
-
-                current += ch
-
-                placeholder.markdown(
-                    current
-                )
-
-                time.sleep(
-                    0.01
-                )
-
-            st.session_state.messages.append(
-
-            {
-
-            "role":
-            "assistant",
-
-            "content":
-            text
-
-            }
-
-            )
-
-            st.rerun()

@@ -8,12 +8,15 @@ sys.path.append(
 )
 
 from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.memory import MemorySaver
+
 from schemas.supervisor_state_schema import SupportState
-from workflows.sequential import intent_node, retrieval_node, response_node
+from workflows.intent import intent_node
+from workflows.retriever import retrieval_node
+from workflows.reponse import response_node
 from workflows.escalation import escalation_node
 from workflows.resolver import resolver_node
 from workflows.followup import followup_node, followup_router
-from langgraph.checkpoint.memory import MemorySaver
 from workflows.tracking import tracking_node
 from workflows.save_history import save_history
 from workflows.supervisor import supervisor_node

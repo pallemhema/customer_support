@@ -1,12 +1,21 @@
 from langchain_core.tools import tool
 from langgraph.types import interrupt
-
-
-
+from database.mongo import orders
+from tools.helpers.get_profile import get_profile
 from datetime import datetime
 import uuid
 
 from tools.helpers.get_order import get_order
+
+from database.mongo import (
+orders,
+customers
+)
+
+from datetime import datetime
+import uuid
+
+
 
 @tool
 def create_order(
@@ -15,23 +24,7 @@ items:list
 ):
 
     """
-    Create order.
-
-    items example:
-
-    [
-
-    {
-    "name":"iPhone 15",
-    "quantity":2
-    },
-
-    {
-    "name":"AirPods",
-    "quantity":1
-    }
-
-    ]
+    Create order workflow
     """
 
     if not items:
@@ -46,9 +39,27 @@ items:list
 
         }
 
+
+    customer = get_profile(
+    customer_id
+    )
+
+    if not customer:
+
+        return {
+
+        "status":
+        "CUSTOMER_NOT_FOUND",
+
+        "response":
+        "Customer profile unavailable"
+
+        }
+
+
     processed=[]
 
-    total_items = 0
+    total_items=0
 
     for item in items:
 
@@ -62,67 +73,45 @@ items:list
         "name":
         item["name"],
 
-        "quantity":
-        qty
+        "qty":
+        qty,
+
+        "price":
+        item.get(
+        "price",
+        0
+        )
 
         })
 
         total_items += qty
 
-    order_id = (
 
-    "ord"
-
-    +
-
-    uuid.uuid4().hex[
-        :6
-    ]
-
+    default_address = customer.get(
+    "address",
+    {}
     )
 
-    order = {
 
-    "order_id":
-    order_id,
+    # ------------------
+    # ORDER CONFIRM
+    # ------------------
 
-    "customer_id":
-    customer_id,
+    confirm = interrupt(
 
-    "items":
-    processed,
+    {
 
-    "status":
-    "PLACED",
+    "waiting_approval":
+    True,
 
-    "created_at":
-    datetime.utcnow()
+    "action":
+    "ORDER_CONFIRMATION",
 
-    }
-
-    orders.insert_one(
-    order
-    )
-
-    return {
-
-    "order_id":
-    order_id,
-
-    "status":
-    "PLACED",
-
-    "items":
-    processed,
-
-    "response":
+    "question":
 
 f"""
-Order created successfully.
 
-Order ID:
-
-{order_id}
+Please confirm order details
 
 Items:
 
@@ -132,114 +121,7 @@ Total Items:
 
 {total_items}
 
-Status:
-
-PLACED
-
-"""
-
-    }
-
-
-
-
-
-
-
-@tool
-def cancel_order(
-    customer_id:str,
-order_id:str
-):
-
-    """
-    Cancel order.
-
-    Allowed:
-
-    PLACED
-
-    PROCESSING
-
-    Rejected:
-
-    SHIPPED
-
-    OUT_FOR_DELIVERY
-
-    DELIVERED
-    """
-
-    order = get_order(
-    order_id,customer_id)
-
-    if not order:
-
-        return {
-
-        "status":
-        "NOT_FOUND",
-
-        "response":
-        f"Order {order_id} not found"
-
-        }
-
-    status = order.get(
-        "status"
-    )
-
-    blocked = [
-
-    "SHIPPED",
-
-    "OUT_FOR_DELIVERY",
-
-    "DELIVERED"
-
-    ]
-
-    if status in blocked:
-
-        return {
-
-        "status":
-        "CANNOT_CANCEL",
-
-        "response":
-
-f"""
-Order {order_id}
-already shipped.
-
-Current Status:
-
-{status}
-
-Cancellation unavailable.
-
-"""
-
-        }
-
-    approval = interrupt(
-
-    {
-
-    "waiting_approval":
-    True,
-
-    "action":
-    "CANCEL_ORDER",
-
-    "order_id":
-    order_id,
-
-    "question":
-
-f"""
-Can I cancel
-order {order_id}?
+Proceed?
 
 """,
 
@@ -255,19 +137,377 @@ order {order_id}?
 
     )
 
-    approved = (
 
-    str(
-    approval
-    ).upper()
+    if str(
+    confirm
+    ).upper() != "YES":
 
-    ==
+        return {
 
-    "YES"
+        "status":
+        "CANCELLED",
+
+        "response":
+
+"""
+Order creation cancelled
+
+"""
+
+        }
+
+
+    # ------------------
+    # ADDRESS STEP
+    # ------------------
+
+    address_response = interrupt(
+
+    {
+
+    "action":
+    "ADDRESS_CONFIRMATION",
+
+    "waiting_address":
+    True,
+
+    "question":
+
+f"""
+
+Ship to:
+
+{default_address}
+
+Reply YES
+
+to use saved address
+
+OR
+
+enter new address:
+
+Example:
+
+12 MG Road
+Hyderabad
+Telangana
+India
+500081
+
+""",
+
+    "options":[
+
+    "YES",
+
+    "ADDRESS"
+
+    ]
+
+    }
 
     )
 
-    if not approved:
+
+    shipping_address = default_address
+
+
+    # USE SAVED
+
+    if str(
+    address_response
+    ).upper() == "YES":
+
+        shipping_address = default_address
+
+
+    # CUSTOM ADDRESS
+
+    else:
+
+        lines = str(
+        address_response
+        ).split(
+        "\n"
+        )
+
+        shipping_address = {
+
+        "line1":
+
+        lines[0]
+
+        if len(lines)>0
+
+        else "",
+
+        "city":
+
+        lines[1]
+
+        if len(lines)>1
+
+        else "",
+
+        "state":
+
+        lines[2]
+
+        if len(lines)>2
+
+        else "",
+
+        "country":
+
+        lines[3]
+
+        if len(lines)>3
+
+        else "",
+
+        "pincode":
+
+        lines[4]
+
+        if len(lines)>4
+
+        else ""
+
+        }
+
+
+    # ------------------
+    # CREATE ORDER
+    # ------------------
+
+    order_id = (
+
+    "ord"
+
+    +
+
+    uuid.uuid4().hex[
+    :6
+    ]
+
+    )
+
+
+    order = {
+
+    "_id":
+    order_id,
+
+    "order_id":
+    order_id,
+
+    "customer_id":
+    customer_id,
+
+    "items":
+    processed,
+
+    "total_items":
+    total_items,
+
+    "currency":
+    "INR",
+
+    "delivery_status":
+    "PLACED",
+
+    "tracking_status":
+    "PENDING",
+
+    "courier":
+    None,
+
+    "tracking_id":
+    None,
+
+    "shipping_address":
+    shipping_address,
+
+    "created_at":
+    datetime.utcnow(),
+
+    "updated_at":
+    datetime.utcnow()
+
+    }
+
+
+    orders.insert_one(
+    order
+    )
+
+
+    return {
+
+    "status":
+    "PLACED",
+
+    "order_id":
+    order_id,
+
+    "shipping_address":
+    shipping_address,
+
+    "items":
+    processed,
+
+    "response":
+
+f"""
+
+Order created successfully
+
+Order ID:
+
+{order_id}
+
+Items:
+
+{processed}
+
+Shipping Address:
+
+{shipping_address}
+
+Status:
+
+PLACED
+
+"""
+
+    }
+@tool
+def cancel_order(
+customer_id:str,
+order_id:str
+):
+
+    """
+    Cancel order workflow
+    """
+
+    order = get_order(
+    order_id,
+    customer_id
+    )
+
+    if not order:
+
+        return {
+
+        "status":
+        "NOT_FOUND",
+
+        "response":
+
+f"""
+Order {order_id}
+not found
+
+"""
+
+        }
+
+    delivery_status = order.get(
+    "delivery_status",
+    "PLACED"
+    )
+
+    blocked = [
+
+    "SHIPPED",
+
+    "OUT_FOR_DELIVERY",
+
+    "DELIVERED"
+
+    ]
+
+    if delivery_status in blocked:
+
+        return {
+
+        "status":
+        "CANNOT_CANCEL",
+
+        "response":
+
+f"""
+Order:
+
+{order_id}
+
+Current Status:
+
+{delivery_status}
+
+Cancellation unavailable.
+
+"""
+
+        }
+
+    items = order.get(
+    "items",
+    []
+    )
+
+    verify = interrupt(
+
+    {
+
+    "waiting_approval":
+    True,
+
+    "action":
+    "VERIFY_CANCEL_ORDER",
+
+    "order_id":
+    order_id,
+
+    "question":
+
+f"""
+
+Please verify order details
+
+Order ID:
+
+{order_id}
+
+Items:
+
+{items}
+
+Delivery Status:
+
+{delivery_status}
+
+Proceed with cancellation?
+
+""",
+
+    "options":[
+
+    "YES",
+
+    "NO"
+
+    ]
+
+    }
+
+    )
+
+    if str(
+    verify
+    ).upper() != "YES":
 
         return {
 
@@ -277,8 +517,76 @@ order {order_id}?
         "response":
 
 f"""
-Cancellation rejected
-for order {order_id}
+Cancellation stopped.
+
+Order:
+
+{order_id}
+
+remains active.
+
+"""
+
+        }
+
+    final_confirmation = interrupt(
+
+    {
+
+    "waiting_approval":
+    True,
+
+    "action":
+    "FINAL_CANCEL",
+
+    "order_id":
+    order_id,
+
+    "question":
+
+f"""
+
+Final confirmation
+
+Cancel order:
+
+{order_id}
+
+Continue?
+
+""",
+
+    "options":[
+
+    "YES",
+
+    "NO"
+
+    ]
+
+    }
+
+    )
+
+    if str(
+    final_confirmation
+    ).upper() != "YES":
+
+        return {
+
+        "status":
+        "REJECTED",
+
+        "response":
+
+f"""
+Final cancellation rejected.
+
+Order:
+
+{order_id}
+
+remains active.
 
 """
 
@@ -297,10 +605,16 @@ for order {order_id}
 
     "$set":{
 
-    "status":
+    "delivery_status":
+    "CANCELLED",
+
+    "tracking_status":
     "CANCELLED",
 
     "cancelled_at":
+    datetime.utcnow(),
+
+    "updated_at":
     datetime.utcnow()
 
     }
@@ -320,11 +634,18 @@ for order {order_id}
     "response":
 
 f"""
-Order {order_id}
 
-cancelled successfully.
+Order cancelled successfully.
+
+Order ID:
+
+{order_id}
 
 Status:
+
+CANCELLED
+
+Tracking:
 
 CANCELLED
 
@@ -333,36 +654,189 @@ CANCELLED
     }
 
 
-
 @tool
 def list_customer_orders(
-customer_id:str
+customer_id:str,
+status:str=None,
+product:str=None
 ):
+    """
+    Retrieve customer orders with optional filtering.
+
+    Supports:
+
+    1. All orders
+
+    2. Orders by status
+
+    3. Orders by product
+
+    Examples:
+
+    Show my orders
+
+    Get my cancelled orders
+
+    List delivered orders
+
+    Show placed orders
+
+    Show shipped orders
+
+    Get AirPods orders
+
+    Get iPhone orders
+
+    Args:
+
+        customer_id (str):
+
+            Customer identifier.
+
+        status (str, optional):
+
+            Filter orders by status.
+
+            Examples:
+
+            CANCELLED
+
+            PLACED
+
+            SHIPPED
+
+            OUT_FOR_DELIVERY
+
+            DELIVERED
+
+        product (str, optional):
+
+            Filter by product name.
+
+            Examples:
+
+            iPhone
+
+            AirPods
+
+            Charger
+
+    Returns:
+
+        dict:
+
+            count:
+            Number of matching orders
+
+            orders:
+            Matching order list
+
+            status:
+            EMPTY if no orders found
+
+    Used By:
+
+        Order Agent
+
+    Notes:
+
+        If status not provided:
+
+        Return all customer orders.
+
+        Product filtering is case insensitive.
+
+        Status filtering supports:
+
+        PLACED
+
+        PROCESSING
+
+        CANCELLED
+
+        SHIPPED
+
+        OUT_FOR_DELIVERY
+
+        DELIVERED
 
     """
-    List customer orders
-    """
 
-    docs = list(
-
-    orders.find(
-
-    {
+    query={
 
     "customer_id":
     customer_id
 
-    },
-
-    {
-
-    "_id":0
-
     }
 
+    docs=list(
+
+    orders.find(
+    query,
+    {"_id":0}
     )
 
     )
+
+
+    if status:
+
+        filtered=[]
+
+        for d in docs:
+
+            order_status=(
+
+            d.get(
+            "status"
+            )
+
+            or
+
+            d.get(
+            "delivery_status"
+            )
+
+            or ""
+
+            ).upper()
+
+
+            if status.upper() in order_status:
+
+                filtered.append(
+                d
+                )
+
+        docs=filtered
+
+
+    if product:
+
+        p=[]
+
+        for d in docs:
+
+            items=d.get(
+            "items",
+            []
+            )
+
+            for item in items:
+
+                if product.lower() in item.get(
+                "name",
+                ""
+                ).lower():
+
+                    p.append(
+                    d
+                    )
+
+                    break
+
+        docs=p
+
 
     if not docs:
 
@@ -372,16 +846,20 @@ customer_id:str
         "EMPTY",
 
         "response":
-        "No orders found"
+
+f"""
+No {status or ''}
+orders found
+
+"""
 
         }
+
 
     return {
 
     "count":
-    len(
-        docs
-    ),
+    len(docs),
 
     "orders":
     docs
