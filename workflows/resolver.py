@@ -7,6 +7,7 @@ import re
 def resolver_node(
 state: SupportState
 ):
+    
 
     print(
     "Resolver node execution"
@@ -20,6 +21,7 @@ state: SupportState
     "messages",
     []
     )
+    
 
     reference_words = [
 
@@ -46,6 +48,20 @@ state: SupportState
     )
 
     if not needs_resolution:
+
+        return {
+
+        "resolved_query":
+        query
+
+        }
+    # reference exists but no history
+
+    if needs_resolution and not history:
+
+        print(
+        "No history available"
+        )
 
         return {
 
@@ -107,7 +123,7 @@ Examples:
 
 History:
 
-delivery status of ord001
+delivery status of ordxxx
 
 Query:
 
@@ -115,12 +131,12 @@ delivery status of above order
 
 Output:
 
-delivery status of ord001
+delivery status of ordxxxx
 
 
 History:
 
-refund status of ord001
+refund status of ordxxx
 
 Query:
 
@@ -128,12 +144,14 @@ refund status of previous order
 
 Output:
 
-refund status of ord001
+refund status of ordxxxx
 
 
 History:
 
-payment issue ord002
+payment issue ordxxxxx
+
+the order id there can be any number of digits followed by ord
 
 Query:
 
@@ -141,7 +159,7 @@ what happened to that payment
 
 Output:
 
-what happened to payment issue ord002
+what happened to payment issue ordxxxx
 
 
 Return ONLY resolved query.

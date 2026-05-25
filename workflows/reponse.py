@@ -1,75 +1,176 @@
 
 
-from agents.response_agent import (
-    response_agent
-)
 
-
+from agents.response_agent import response_agent
+from helpers.clean_text import clean_llm_output
+from agents.response_agent import response_agent
 from helpers.clean_text import clean_llm_output
 
 def response_node(
 state
 ):
 
+    print(
+    "RESPONSE NODE EXECUTION"
+    )
+
     text = ""
 
-    
+    if state.get(
+    "intent"
+    ) == "greeting_intent":
 
-    # greeting
+        text += f"""
+Customer greeting detected
 
-    if state.get("intent") == "greeting_intent":
+Customer message:
 
-        text +="""
-            Customer greeting detected.
+{state['query']}
 
-            Customer message:
+Respond warmly.
 
-            {state['query']}
+Keep response short.
+"""
 
-            Respond warmly.
 
-            If customer introduced themselves:
+    if state.get(
+    "retrieved_docs"
+    ):
 
-            Hi my name is Hema
-
-            acknowledge the introduction.
-
-            Keep response short.
-
-            """
-
-                    
-
-    if state.get("retrieved_docs"):
-        text += str(state["retrieved_docs"])
-
-    if state.get("escalation_result"):
-        text += "\n"
-        text += str(state["escalation_result"])
-
-    if state.get("followup"):
-        text += "\n"
-        text += str(state["followup"])
-
-    result = response_agent.invoke({
-        "messages":[
-            ("user",
-            f"""Customer Query:{state['query']} Context:{text} Generate response to the customer."""
-            )
+        text += str(
+        state[
+        "retrieved_docs"
         ]
-    })
+        )
 
 
-    output = clean_llm_output(
-            result["messages"][-1].content
-            )
-    print("output from reponse:", output)
+    if state.get(
+    "escalation_result"
+    ):
+
+        text += "\n"
+
+        text += str(
+        state[
+        "escalation_result"
+        ]
+        )
+
+
+    if state.get(
+    "followup"
+    ):
+
+        text += "\n"
+
+        text += str(
+        state[
+        "followup"
+        ]
+        )
+
+
+    prompt = f"""
+
+Customer Query:
+
+{state['query']}
+
+Context:
+
+{text}
+
+Generate response
+
+"""
+
+
+    response = ""
+
+    for chunk,meta in response_agent.stream(
+
+    {
+
+    "messages":[
+
+    (
+
+    "user",
+
+    prompt
+
+    )
+
+    ]
+
+    },
+
+    stream_mode="messages"
+
+    ):
+
+        token = getattr(
+
+        chunk,
+
+        "content",
+
+        ""
+
+        )
+
+
+        if not token:
+
+            continue
+
+
+        print(
+        "TOKEN:",
+        token
+        )
+
+
+        response += token
+
+
+    response = clean_llm_output(
+    response
+    )
+
+
+    print(
+    "FINAL:",
+    response
+    )
+
+   
 
     return {
 
-        "response":output,
-        "messages":[
-            ("user",state["query"]),
-            ("assistant",output)
-        ]
+    "response":
+    response,
+
+    "messages":[
+
+    (
+
+    "user",
+
+    state[
+    "query"
+    ]
+
+    ),
+
+    (
+
+    "assistant",
+
+    response
+
+    )
+
+    ]
+
     }

@@ -8,30 +8,55 @@ text:str
 
         return ""
 
-    # remove think blocks
+
+    # remove completed think block
 
     text = re.sub(
 
-        r"<think>.*?</think>",
+    r"<think>.*?</think>",
 
-        "",
+    "",
 
-        text,
+    text,
 
-        flags=re.DOTALL
+    flags=re.DOTALL
 
     )
+
+
+    # remove unfinished streaming think block
+
+    text = re.sub(
+
+    r"<think>.*",
+
+    "",
+
+    text,
+
+    flags=re.DOTALL
+
+    )
+
 
     # remove markdown
 
     text = text.replace(
-        "```json",
-        ""
+
+    "```json",
+
+    ""
+
     )
 
+
     text = text.replace(
-        "```",
-        ""
+
+    "```",
+
+    ""
+
     )
+
 
     return text.strip()

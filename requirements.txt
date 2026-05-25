@@ -30,3 +30,8 @@ ipykernel
 faiss-cpu
 fastapi
 uvicorn
+
+pytest 
+pytest-mock 
+pytest-cov 
+pytest-benchmark

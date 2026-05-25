@@ -13,6 +13,7 @@ clean_llm_output
 )
 
 
+
 def followup_node(
 state: SupportState
 ):
@@ -21,15 +22,16 @@ state: SupportState
     "Followup Node Execution"
     )
 
-  
 
     print(
     state
     )
 
+
     ticket_id = state.get(
-        "ticket_id"
+    "ticket_id"
     )
+
 
     if not ticket_id:
 
@@ -40,21 +42,17 @@ state: SupportState
 
         }
 
+
     escalation_response = state.get(
-        "response",
-        ""
+
+    "response",
+
+    ""
+
     )
 
-    result = followup_agent.invoke(
-    {
 
-    "messages":[
-
-    (
-
-    "user",
-
-f"""
+    prompt = f"""
 
 Ticket:
 
@@ -70,21 +68,71 @@ Existing escalation response:
 
 """
 
+
+    # -------------------
+    # STREAM RESPONSE
+    # -------------------
+
+    response = ""
+
+
+    for chunk,meta in followup_agent.stream(
+
+    {
+
+    "messages":[
+
+    (
+
+    "user",
+
+    prompt
+
     )
 
     ]
 
-    }
+    },
 
-    )
+    stream_mode="messages"
+
+    ):
+
+        token = getattr(
+
+        chunk,
+
+        "content",
+
+        ""
+
+        )
+
+
+        if not token:
+
+            continue
+
+
+        print(
+        "TOKEN:",
+        token
+        )
+
+
+        response += token
+
 
     output = clean_llm_output(
-
-    result[
-    "messages"
-    ][-1].content
-
+    response
     )
+
+
+    print(
+    "FOLLOWUP FINAL:",
+    output
+    )
+
 
     final_response = f"""
 
@@ -93,6 +141,7 @@ Existing escalation response:
 {output}
 
 """
+
 
     return {
 
@@ -105,19 +154,26 @@ Existing escalation response:
     "messages":[
 
     (
+
     "user",
-    state["query"]
+
+    state[
+    "query"
+    ]
+
     ),
 
     (
+
     "assistant",
+
     final_response
+
     )
 
     ]
 
     }
-
 def followup_router(state):
 
     print("Graph state at followup router: ", state)

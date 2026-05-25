@@ -1,0 +1,37 @@
+[
+  {
+    "query": "Where is my order ord100?",
+    "retrieved_docs": "Order ord100 is currently OUT_FOR_DELIVERY and expected to arrive on 2026-06-01.",
+    "response": "Your order ord100 is currently OUT_FOR_DELIVERY and is expected to arrive on 2026-06-01.",
+    "ground_truth": "Your order ord100 is currently OUT_FOR_DELIVERY and expected delivery is 2026-06-01.",
+    "noise": "Payment was processed successfully."
+  },
+  {
+    "query": "What is the refund policy for delayed returns?",
+    "retrieved_docs": "",
+    "response": "Information unavailable.",
+    "ground_truth": "Refund policy information is unavailable in current context.",
+    "noise": "Order ord200 has been delivered."
+  },
+  {
+    "query": "Why has my payment not gone through?",
+    "retrieved_docs": "Payment gateway is down for maintenance.",
+    "response": "Your payment failed because the gateway is temporarily down.",
+    "ground_truth": "The payment failed due to gateway maintenance.",
+    "noise": "Your shipment is delayed due to courier."
+  },
+  {
+    "query": "Is my refund processed for ord300?",
+    "retrieved_docs": "Order ord300 was delivered successfully.",
+    "response": "Your refund for ord300 has been processed.",
+    "ground_truth": "No refund has been processed for ord300.",
+    "noise": "Delivery status is OUT_FOR_DELIVERY."
+  },
+  {
+    "query": "Give me the latest update on ord400.",
+    "retrieved_docs": "Order ord400 is scheduled for dispatch tomorrow.",
+    "response": "Order ord400 is scheduled for dispatch tomorrow.",
+    "ground_truth": "Order ord400 will be dispatched tomorrow.",
+    "noise": "The refund amount is ₹1500."
+  }
+]

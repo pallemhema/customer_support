@@ -14,7 +14,8 @@ def get_llm():
             "GROQ_API_KEY"
         ),
          max_tokens=1000,
-         temperature=0
+         temperature=0,
+         streaming=True
     )
 
   

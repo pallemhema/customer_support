@@ -9,71 +9,99 @@ tracking_agent
 from helpers.clean_text import (
 clean_llm_output
 )
+from schemas.supervisor_state_schema import SupportState
+from agents.tracking_agent import tracking_agent
+from helpers.extract_id import extract_order_id
 
-def tracking_node(
-state:SupportState
-):
+def tracking_node(state: SupportState):
+
+    print(
+    "Tracking Node execution"
+    )
 
     query = state.get(
         "resolved_query",
         state["query"]
     )
 
-    result = tracking_agent.invoke({
+    order_id = state.get(
+        "order_id"
+    )
 
-        "messages":[(
+    if not order_id:
 
-        "user",
+        order_id = extract_order_id(
+        query
+        )
+
+    response=""
+
+
+    for chunk,meta in tracking_agent.stream(
+
+    {
+        "messages":[
+            (
+            "user",
 
 f"""
-Customer:
+Customer ID:
 
 {state["customer_id"]}
 
-Order:
+Order ID:
 
-{state.get(
-"order_id",
-""
-)}
+{order_id}
 
-Query:
+Customer Query:
 
 {query}
 
-Perform tracking.
+MANDATORY:
 
-Use tools.
+Use tracking tool.
+
+Do NOT ask again for customer id.
+
+Do NOT ask again for order id.
+
+Track immediately.
 
 """
-        )]
+            )
+        ]
+    },
 
-    })
+    stream_mode="messages"
 
-    output = clean_llm_output(
+    ):
 
-        result[
-        "messages"
-        ][-1].content
+        token=getattr(
+        chunk,
+        "content",
+        ""
+        )
 
-    )
+        if not token:
+            continue
 
-    print("Output: ", output)
+        print(
+        "TOKEN:",
+        token
+        )
+
+        response += token
+
 
     return {
 
+        "order_id":
+        order_id,
+
         "tracking_result":
-        output,
+        response,
 
         "response":
-        output,
+        response
 
-        "messages":[
-
-            (
-                "assistant",
-                output
-            )
-
-        ]
     }

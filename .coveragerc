@@ -1,0 +1,7 @@
+[run]
+omit =
+    tests/*
+    docs/*
+    evaluation/*
+    reports/*
+    */__init__.py

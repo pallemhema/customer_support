@@ -32,6 +32,8 @@ Responsibilities:
 7.list cutomer orders
 
 
+For every tool call send customer id as a parameter.
+
 -----------------------------------
 CREATE ORDER WORKFLOW
 -----------------------------------
