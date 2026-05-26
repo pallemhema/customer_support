@@ -1,280 +1,488 @@
 from langchain_core.tools import tool
 
 from database.mongo import (
-escalation_tickets_collection,
-orders,
-
-
+    escalation_tickets_collection
 )
+
 from tools.helpers.get_profile import get_profile
 from tools.helpers.get_order import get_order
 from tools.helpers.refund_tools import get_refund
+from tools.tool_retry import tool_with_retry
 
 
 @tool
 def track_ticket(
-ticket_id:str,
-customer_id:str
+    ticket_id: str,
+    customer_id: str
 ):
     """
-Track support ticket status.
+    Track escalation/support ticket details.
 
-Args:
-    ticket_id:
-        Support ticket identifier
+    Args:
+        ticket_id:
+            Unique support ticket identifier.
 
-    customer_id:
-        Customer identifier
+        customer_id:
+            Customer identifier.
 
-Returns:
-    Ticket details including:
-    status,
-    assigned team,
-    priority,
-    issue type
+    Returns:
+        dict containing:
+
+        status:
+            SUCCESS / NOT_FOUND / FAILED
+
+        data:
+            ticket information including:
+
+            ticket_id
+
+            customer_id
+
+            issue intent
+
+            priority
+
+            ticket status
+
+            assigned team
+
+            creation time
     """
 
-    ticket = escalation_tickets_collection.find_one(
-    {
-        "ticket_id":ticket_id,
-        "customer_id":customer_id
-    }
-    )
+    try:
 
-    if not ticket:
+        if escalation_tickets_collection is None:
+
+            return {
+                "status": "FAILED",
+                "message": "Database unavailable"
+            }
+
+        ticket = tool_with_retry(
+
+            escalation_tickets_collection.find_one,
+
+            {
+                "ticket_id": ticket_id,
+                "customer_id": customer_id
+            }
+        )
+
+        if not ticket:
+
+            return {
+                "status": "NOT_FOUND",
+                "ticket_id": ticket_id
+            }
 
         return {
-            "status":"NOT_FOUND"
+
+            "status": "SUCCESS",
+
+            "data": {
+
+                "ticket_id":
+                ticket.get(
+                    "ticket_id"
+                ),
+
+                "customer_id":
+                customer_id,
+
+                "intent":
+                ticket.get(
+                    "intent"
+                ),
+
+                "priority":
+                ticket.get(
+                    "priority"
+                ),
+
+                "ticket_status":
+                ticket.get(
+                    "status"
+                ),
+
+                "assigned_team":
+                ticket.get(
+                    "assigned_to"
+                ),
+
+                "created_at":
+                str(
+                    ticket.get(
+                        "created_at"
+                    )
+                )
+            }
         }
 
-    return {
+    except Exception:
 
-        "ticket_id":
-        ticket.get(
-        "ticket_id"
-        ),
+        return {
 
-        "customer_id":
-        customer_id,
+            "status": "FAILED",
 
-        "intent":
-        ticket.get(
-        "intent"
-        ),
-
-        "priority":
-        ticket.get(
-        "priority"
-        ),
-
-        "ticket_status":
-        ticket.get(
-        "status"
-        ),
-
-        "assigned_team":
-        ticket.get(
-        "assigned_to"
-        ),
-
-        "created_at":
-        str(
-        ticket.get(
-        "created_at"
-        )
-        )
-    }
+            "message":
+            "Ticket lookup failed"
+        }
 
 
 @tool
 def track_order(
-order_id:str,
-customer_id:str
+    order_id: str,
+    customer_id: str
 ):
     """
-Track order delivery details.
+    Track customer order details.
 
-Returns:
+    Args:
 
-Order information
+        order_id:
+            Order identifier.
 
-Delivery status
+        customer_id:
+            Customer identifier.
 
-Courier details
+    Returns:
 
-Items purchased
+        status:
+            SUCCESS / NOT_FOUND / FAILED
 
-Expected delivery
+        data:
 
-Shipping address
-"""
+            order details
 
-    order = get_order(order_id,customer_id)
+            delivery status
 
-    if not order:
+            courier info
 
-        return {
-            "status":"NOT_FOUND",
-            "order_id":order_id
-        }
+            tracking id
 
-    return {
+            expected delivery
 
-        "order_id":
-        order["_id"],
+            shipping address
 
-        "customer_id":
-        customer_id,
+            items
 
-        "delivery_status":
-        order.get(
-        "delivery_status"
-        ),
+            amount
+    """
 
-        "tracking_status":
-        order.get(
-        "tracking_status"
-        ),
+    try:
 
-        "courier":
-        order.get(
-        "courier"
-        ),
-
-        "tracking_id":
-        order.get(
-        "tracking_id"
-        ),
-
-        "expected_delivery":
-        order.get(
-        "expected_delivery"
-        ),
-
-        "shipping_address":
-        order.get(
-        "shipping_address"
-        ),
-
-        "items":
-        order.get(
-        "items",
-        []
-        ),
-
-        "total_amount":
-        order.get(
-        "total_amount"
-        ),
-
-        "currency":
-        order.get(
-        "currency"
+        order = tool_with_retry(
+            get_order,
+            order_id,
+            customer_id
         )
 
-    }
+        if not order:
+
+            return {
+
+                "status":
+                "NOT_FOUND",
+
+                "order_id":
+                order_id
+            }
+
+        return {
+
+            "status":
+            "SUCCESS",
+
+            "data": {
+
+                "order_id":
+                str(
+                    order.get(
+                        "_id"
+                    )
+                ),
+
+                "customer_id":
+                customer_id,
+
+                "delivery_status":
+                order.get(
+                    "delivery_status"
+                ),
+
+                "tracking_status":
+                order.get(
+                    "tracking_status"
+                ),
+
+                "courier":
+                order.get(
+                    "courier"
+                ),
+
+                "tracking_id":
+                order.get(
+                    "tracking_id"
+                ),
+
+                "expected_delivery":
+                order.get(
+                    "expected_delivery"
+                ),
+
+                "shipping_address":
+                order.get(
+                    "shipping_address"
+                ),
+
+                "items":
+                order.get(
+                    "items",
+                    []
+                ),
+
+                "total_amount":
+                order.get(
+                    "total_amount"
+                ),
+
+                "currency":
+                order.get(
+                    "currency"
+                )
+            }
+        }
+
+    except Exception:
+
+        return {
+
+            "status":
+            "FAILED",
+
+            "message":
+            "Order service unavailable"
+        }
 
 
 @tool
-def get_customer_profile(customer_id:str):
+def get_customer_profile(
+    customer_id: str
+):
+    """
+    Get customer profile details.
 
-    """Get customer profile details."""
+    Args:
 
-    profile = get_profile(customer_id)
+        customer_id:
+            Customer identifier.
 
-    return{
-        "customer_id":customer_id,
-        "name":profile.get("name"),
-        "email":profile.get("email"),
-        "phone":profile.get("phone"),
-        "address":profile.get("address")
-    }
+    Returns:
+
+        status:
+            SUCCESS / NOT_FOUND / FAILED
+
+        data:
+
+            customer name
+
+            email
+
+            phone
+
+            address
+    """
+
+    try:
+
+        profile = tool_with_retry(
+            get_profile,
+            customer_id
+        )
+
+        if not profile:
+
+            return {
+
+                "status":
+                "NOT_FOUND",
+
+                "customer_id":
+                customer_id
+            }
+
+        return {
+
+            "status":
+            "SUCCESS",
+
+            "data": {
+
+                "customer_id":
+                customer_id,
+
+                "name":
+                profile.get(
+                    "name"
+                ),
+
+                "email":
+                profile.get(
+                    "email"
+                ),
+
+                "phone":
+                profile.get(
+                    "phone"
+                ),
+
+                "address":
+                profile.get(
+                    "address"
+                )
+            }
+        }
+
+    except Exception:
+
+        return {
+
+            "status":
+            "FAILED",
+
+            "message":
+            "Customer lookup failed"
+        }
+
 
 @tool
 def track_refund(
-order_id:str,
-customer_id:str
+    order_id: str,
+    customer_id: str
 ):
     """
-Track refund status.
+    Track refund request details.
 
-Returns:
+    Args:
 
-refund amount
+        order_id:
+            Order identifier.
 
-pending days
+        customer_id:
+            Customer identifier.
 
-return completion
+    Returns:
 
-finance escalation
+        status:
+            SUCCESS / NOT_FOUND / FAILED
 
-refund reason
-"""
+        data:
 
-    refund = get_refund(order_id,customer_id)
+            refund amount
 
-    if not refund:
+            refund status
+
+            pending days
+
+            return completion
+
+            escalation status
+
+            refund reason
+    """
+
+    try:
+
+        refund = tool_with_retry(
+            get_refund,
+            order_id,
+            customer_id
+        )
+
+        if not refund:
+
+            return {
+
+                "status":
+                "NOT_FOUND",
+
+                "order_id":
+                order_id
+            }
 
         return {
+
             "status":
-            "NOT_FOUND"
+            "SUCCESS",
+
+            "data": {
+
+                "refund_id":
+                str(
+                    refund.get(
+                        "_id"
+                    )
+                ),
+
+                "order_id":
+                order_id,
+
+                "payment_id":
+                refund.get(
+                    "payment_id"
+                ),
+
+                "refund_requested":
+                refund.get(
+                    "refund_requested"
+                ),
+
+                "return_completed":
+                refund.get(
+                    "return_completed"
+                ),
+
+                "refund_status":
+                refund.get(
+                    "refund_status"
+                ),
+
+                "refund_amount":
+                refund.get(
+                    "refund_amount"
+                ),
+
+                "refund_days":
+                refund.get(
+                    "refund_days"
+                ),
+
+                "reason":
+                refund.get(
+                    "reason"
+                ),
+
+                "finance_escalated":
+                refund.get(
+                    "finance_escalated"
+                ),
+
+                "requested_at":
+                str(
+                    refund.get(
+                        "requested_at"
+                    )
+                )
+            }
         }
 
-    return {
+    except Exception:
 
-        "refund_id":
-        refund.get(
-        "_id"
-        ),
+        return {
 
-        "order_id":
-        order_id,
+            "status":
+            "FAILED",
 
-        "payment_id":
-        refund.get(
-        "payment_id"
-        ),
-
-        "refund_requested":
-        refund.get(
-        "refund_requested"
-        ),
-
-        "return_completed":
-        refund.get(
-        "return_completed"
-        ),
-
-        "refund_status":
-        refund.get(
-        "refund_status"
-        ),
-
-        "refund_amount":
-        refund.get(
-        "refund_amount"
-        ),
-
-        "refund_days":
-        refund.get(
-        "refund_days"
-        ),
-
-        "reason":
-        refund.get(
-        "reason"
-        ),
-
-        "finance_escalated":
-        refund.get(
-        "finance_escalated"
-        ),
-
-        "requested_at":
-        str(
-        refund.get(
-        "requested_at"
-        )
-        )
-
-    }
+            "message":
+            "Refund service unavailable"
+        }

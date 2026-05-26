@@ -1,50 +1,102 @@
-
-
 from agents.intent_agent import (
     intent_agent
 )
 
-
-import json
 from validators.intent_validator import (
     validate_intent
 )
 
-from helpers.clean_text import clean_llm_output
+from helpers.clean_text import (
+    clean_llm_output
+)
+
+from agents.agent_retry import (
+    agent_with_retry
+)
+
 import json
 import re
 
 
-def intent_node(state):
+def intent_node(
+    state
+):
 
     print(
         "Intent Node execution"
     )
 
     query = state.get(
-        "resolved_query",
-        state["query"]
-        )
 
-    result = intent_agent.invoke(
-        {
-            "messages":[
-                (
-                    "user",
-                    query
-                )
-            ]
-        }
+        "resolved_query",
+
+        state["query"]
+
     )
 
+    try:
 
+        result = agent_with_retry(
 
-    cleaned = clean_llm_output(result["messages"][-1].content)
-    print("output: ", cleaned)
-    
+            intent_agent,
 
+            {
 
+                "messages":[
 
+                    (
+
+                        "user",
+
+                        query
+
+                    )
+
+                ]
+
+            }
+
+        )
+
+        messages = result.get(
+            "messages",
+            []
+        )
+
+        if not messages:
+
+            raise Exception(
+                "Empty agent output"
+            )
+
+        cleaned = clean_llm_output(
+
+            messages[
+                -1
+            ].content
+
+        )
+
+        print(
+            "output:",
+            cleaned
+        )
+
+    except Exception as e:
+
+        print(
+            "Intent failed:",
+            e
+        )
+
+        cleaned = """
+
+{
+    "intent":"complaint",
+    "priority":"LOW"
+}
+
+"""
 
     try:
 
@@ -58,19 +110,34 @@ def intent_node(state):
             "JSON failed. Using fallback"
         )
 
-
         match = re.search(
-            r"\{.*\}",
-            cleaned,
-            re.DOTALL
-        )
 
+            r"\{.*\}",
+
+            cleaned,
+
+            re.DOTALL
+
+        )
 
         if match:
 
-            data = json.loads(
-                match.group()
-            )
+            try:
+
+                data = json.loads(
+                    match.group()
+                )
+
+            except Exception:
+
+                data = {
+
+                    "intent":
+                    "complaint",
+
+                    "priority":
+                    "LOW"
+                }
 
         else:
 
@@ -83,39 +150,43 @@ def intent_node(state):
                 "LOW"
             }
 
-
     validated = validate_intent(
 
         query=
-        state["query"],
+        state[
+            "query"
+        ],
 
         intent=
         data.get(
+
             "intent",
+
             "complaint"
+
         ),
 
         priority=
         data.get(
+
             "priority",
+
             "LOW"
+
         )
 
     )
-
 
     print(
         "VALIDATED:",
         validated
     )
 
-
     state[
         "intent"
     ] = validated[
         "intent"
     ]
-
 
     state[
         "priority"
@@ -124,7 +195,16 @@ def intent_node(state):
     ]
 
     return {
-        "intent":validated["intent"],
-        "priority" :validated["priority"]  
-    }
 
+        "intent":
+
+        validated[
+            "intent"
+        ],
+
+        "priority":
+
+        validated[
+            "priority"
+        ]
+    }

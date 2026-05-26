@@ -1,10 +1,25 @@
 from database.mongo import (
     customers
 )
+
+
+from tools.tool_retry import (
+    tool_with_retry
+)
+
+
+
+    
 def get_profile(customer_id:str):
+    try:
+            
+        if customers is None:
+            return None
 
-    """Get customer profile details."""
-
-    profile = customers.find_one({"_id":customer_id   })
-
-    return profile
+        profile = tool_with_retry(customers.find_one,{"_id":customer_id   })
+        if not profile:
+            return None
+        return profile
+    except Exception:
+        return None
+    

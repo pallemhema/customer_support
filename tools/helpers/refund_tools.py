@@ -1,10 +1,17 @@
 from database.mongo import refunds
+from tools.tool_retry import (
+    tool_with_retry
+)
+  
+def get_refund(order_id:str,customer_id:str):
+    try:
+            
+        if refunds is None:
+            return None
 
-def get_refund(order_id,customer_id):
-
-    return refunds.find_one(
-        {
-            "order_id":order_id,
-            "customer_id":customer_id
-        }
-    )
+        refund = tool_with_retry(refunds.find_one,{"_id":customer_id   })
+        if not refund:
+            return None
+        return refund
+    except Exception:
+        return None

@@ -330,12 +330,12 @@ if query:
 
 if (
 
-st.session_state.processing
+    st.session_state.processing
 
-and
+    and
 
-"pending_query"
-in st.session_state
+    "pending_query"
+    in st.session_state
 
 ):
 
@@ -343,48 +343,46 @@ in st.session_state
 
     del st.session_state.pending_query
 
-
     with st.chat_message(
-    "assistant"
+        "assistant"
     ):
 
-        thinking = st.empty()
-
-        thinking.markdown(
-        "Thinking..."
-        )
 
         holder = st.empty()
 
+        holder.markdown(
+            "Thinking..."
+        )
+
         final = ""
 
+        streamed_started = False
 
         try:
 
             response = requests.post(
 
-            f"{API}/chat-stream",
+                f"{API}/chat-stream",
 
-            json={
+                json={
 
-            "customer_id":
-            st.session_state.customer_id,
+                    "customer_id":
+                    st.session_state.customer_id,
 
-            "session_id":
-            st.session_state.session_id,
+                    "session_id":
+                    st.session_state.session_id,
 
-            "thread_id":
-            st.session_state.thread_id,
+                    "thread_id":
+                    st.session_state.thread_id,
 
-            "query":
-            query
+                    "query":
+                    query
 
-            },
+                },
 
-            stream=True
+                stream=True
 
             )
-
 
             for line in response.iter_lines():
 
@@ -392,74 +390,45 @@ in st.session_state
 
                     continue
 
-
                 payload = json.loads(
-                line.decode()
+                    line.decode()
                 )
-
 
                 kind = payload.get(
-                "type"
+                    "type"
                 )
 
-
-                # -----------------
+                # ----------------------
                 # TOKEN STREAM
-                # -----------------
+                # ----------------------
+
                 if kind == "token":
 
-                    print("kind:", kind)
-
-                    thinking.empty()
-
                     token = payload.get(
-                    "token",
-                    ""
+
+                        "token",
+
+                        ""
+
                     )
 
-                    print("token:", token)
+                    if not token:
+
+                        continue
+
+                    streamed_started = True
+
+                    
 
                     final += token
 
-
-                    # remove completed think blocks
-
-                    clean = re.sub(
-
-                    r"<think>.*?</think>",
-
-                    "",
-
-                    final,
-
-                    flags=re.DOTALL
-
-                    )
-
-
-                    # remove unfinished streamed think block
-
-                    clean = re.sub(
-
-                    r"<think>.*",
-
-                    "",
-
-                    clean,
-
-                    flags=re.DOTALL
-
-                    )
-
-
                     holder.markdown(
-                    clean
+                        final
                     )
 
-
-                # -----------------
+                # ----------------------
                 # INTERRUPT
-                # -----------------
+                # ----------------------
 
                 elif kind == "interrupt":
 
@@ -469,154 +438,176 @@ in st.session_state
 
                     st.session_state.show_loading_message=False
 
-
                     intr = payload.get(
-                    "data",
-                    {}
+                        "data",
+                        {}
                     )
-
-
-                    print(
-                    "RAW INTERRUPT:",
-                    intr
-                    )
-
-
-                    # handle list
 
                     if isinstance(
-                    intr,
-                    list
+                        intr,
+                        list
                     ):
 
                         if len(intr):
 
                             intr = intr[0]
 
-
-                    st.session_state.interrupt = intr
+                    st.session_state.interrupt=intr
 
                     st.rerun()
 
-
-                # -----------------
+                # ----------------------
                 # NODE UPDATES
-                # -----------------
+                # ----------------------
 
                 elif kind == "update":
 
-                    data = payload[
-                    "data"
-                    ]
+                    data = payload.get(
+                        "data",
+                        {}
+                    )
 
                     print(
-                    "UPDATE:",
-                    data
+                        "UPDATE:",
+                        data
                     )
-                    hidden = ["resolver","intent","supervisor","save_history"]
+
+                    hidden_nodes = [
+
+                        "resolver",
+
+                        "intent",
+
+                        "supervisor",
+
+                        "save_history",
+
+                        "history",
+
+                        "memory"
+
+                    ]
 
                     skip = False
 
-                    for node in hidden:
-                        
+                    for node in hidden_nodes:
 
                         if node in data:
 
                             skip = True
-
                             break
-
 
                     if skip:
 
                         continue
 
-
                     text = ""
 
-
-                    if "response" in data:
-
-                        text = data[
-                        "response"
-                        ].get(
-                        "response",
-                        ""
-                        )
-
-
-                    elif "tracking" in data:
+                    if "tracking" in data:
 
                         text = data[
-                        "tracking"
+                            "tracking"
                         ].get(
-                        "response",
-                        ""
+                            "response",
+                            ""
                         )
-
 
                     elif "order" in data:
 
                         text = data[
-                        "order"
+                            "order"
                         ].get(
-                        "response",
-                        ""
+                            "response",
+                            ""
                         )
-
 
                     elif "escalation" in data:
 
                         text = data[
-                        "escalation"
+                            "escalation"
                         ].get(
-                        "response",
-                        ""
+                            "response",
+                            ""
                         )
-
 
                     elif "followup" in data:
 
                         text = data[
-                        "followup"
+                            "followup"
                         ].get(
-                        "response",
-                        ""
+                            "response",
+                            ""
                         )
 
+                    elif "response" in data:
+
+                        text = data[
+                            "response"
+                        ].get(
+                            "response",
+                            ""
+                        )
 
                     if text:
 
-                        thinking.empty()
+                        holder.markdown(
+                            text
+                        )
 
                         final = text
 
-                        holder.markdown(
-                        final
-                        )
+                        streamed_started = True
+        
+                elif kind == "error":
 
+                    text = payload.get(
+                        "message",
+                        "Something went wrong"
+                    )
 
+                    holder.error(
+                        text
+                    )
+
+                    final = text
         except ChunkedEncodingError:
 
             pass
 
+        except Exception as e:
 
-    # SAVE MESSAGE
+            print(
+                "STREAM ERROR:",
+                e
+            )
 
-    if final:
+            final = """
+
+Unable to process request.
+
+Please try again.
+
+"""
+
+            holder.markdown(
+                final
+            )
+
+    # ----------------------
+    # SAVE CHAT
+    # ----------------------
+
+    if final.strip():
 
         st.session_state.messages.append({
 
-        "role":
-        "assistant",
+            "role":
+            "assistant",
 
-        "content":
-        final
+            "content":
+            final
 
         })
-
-
-    # RESET FLAGS
 
     st.session_state.processing=False
 
@@ -624,8 +615,8 @@ in st.session_state
 
     st.session_state.show_loading_message=False
 
-
     st.rerun()
+
 # --------------------------------
 # HITL
 # --------------------------------

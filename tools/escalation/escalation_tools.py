@@ -1,193 +1,387 @@
+from datetime import datetime
+import uuid
+
+from langchain_core.tools import tool
+from langgraph.types import interrupt
+
 from database.mongo import (
     escalation_tickets_collection
 )
 
-from datetime import datetime
+from schemas.escalation_schemas import (
+    CreateTicketInput,
+    RequestHITLInput,
+    EscalateToHumanInput
+)
 
-from langgraph.types import interrupt
-import uuid
-from schemas.escalation_schemas import CreateActionRequestInput, CreateTicketInput, EscalateToHumanInput, RequestHITLInput
+from tools.tool_retry import (
+    tool_with_retry
+)
 
 
+@tool(
+    args_schema=
+    CreateTicketInput
+)
+def create_ticket(
+    session_id:str,
+    intent:str,
+    priority:str,
+    customer_id:str,
+    query:str
+):
 
-def create_ticket(session_id:str,intent:str,priority:str,customer_id:str, query:str):
     """
-Create a new support ticket for a customer issue.
+    Create escalation ticket.
 
-This tool generates a unique ticket ID and stores
-issue information such as session ID, intent,
-priority, description, status, timestamps,
-and ticket history.
+    Workflow:
 
-Args:
-    session_id (str):
-        Chat session associated with the issue.
+    1. Generate ticket id
 
-    intent (str):
-        Detected issue category such as
-        refund_issue, payment_issue,
-        login_issue, etc.
+    2. Store issue
 
-    priority (str):
-        Severity level of the issue.
+    3. Save escalation record
 
-        Possible values:
-        LOW
-        MEDIUM
-        HIGH
-        CRITICAL
+    Returns:
 
-    Customer id (str):
-        customer id
+    SUCCESS
 
-Returns:
-    dict:
-        Newly created ticket object.
+    FAILED
 
-Used By:
-    Escalation Agent
-    Follow-up Agent
-"""
-    print(f"Creating ticket for session {session_id} with intent {intent} and priority {priority}")
+    ticket details
+    """
 
-    ticket_id = str(uuid.uuid4())
+    try:
 
-    ticket = {
+        if escalation_tickets_collection is None:
 
-        "ticket_id":
-        ticket_id,
+            return {
 
-        "customer_id":
-        customer_id,
+                "status":
+                "FAILED",
 
-        "session_id":
-        session_id,
+                "message":
+                "Database unavailable"
 
-        "intent":
-        intent,
+            }
 
-        "priority":
-        priority,
+        ticket_id = str(
+            uuid.uuid4()
+        )
 
-        "status":
-        "OPEN",
-        "created_at":datetime.utcnow(),
-        "updated_at":   datetime.utcnow(),
+        ticket = {
+
+            "ticket_id":
+            ticket_id,
+
+            "customer_id":
+            customer_id,
+
+            "session_id":
+            session_id,
+
+            "intent":
+            intent,
+
+            "priority":
+            priority,
+
+            "query":
+            query,
+
+            "status":
+            "OPEN",
+
+            "assigned_to":
+            None,
+
+            "created_at":
+            datetime.utcnow(),
+
+            "updated_at":
+            datetime.utcnow()
+
         }
 
-  
+        tool_with_retry(
 
-    print(f"Generated ticket ID: {ticket_id}")
+            escalation_tickets_collection.insert_one,
 
-    print(f"Inserting ticket into database: {ticket}")
+            ticket
 
-    escalation_tickets_collection.insert_one(ticket)
+        )
 
-    return {
-    "ticket_id":ticket_id,
-    "session_id":session_id,
-    "intent":intent,
-    "priority":priority,
-    "status":"OPEN"
-}
+        return {
 
-def request_hitl(action,ticket_id,question):
-    
-    """ Pause graph execution and wait for customer approval. Customer replies: YES or NO"""
+            "status":
+            "SUCCESS",
+
+            "data": {
+
+                "ticket_id":
+                ticket_id,
+
+                "session_id":
+                session_id,
+
+                "customer_id":
+                customer_id,
+
+                "intent":
+                intent,
+
+                "priority":
+                priority,
+
+                "ticket_status":
+                "OPEN"
+
+            }
+
+        }
+
+    except Exception as e:
+
+        print(
+            "Ticket creation error:",
+            e
+        )
+
+        return {
+
+            "status":
+            "FAILED",
+
+            "message":
+            "Ticket creation failed"
+
+        }
+
+
+@tool(
+    args_schema=
+    RequestHITLInput
+)
+def request_hitl(
+    action:str,
+    ticket_id:str,
+    question:str
+):
+
+    """
+    Human approval workflow.
+
+    Supported:
+
+    account lock
+
+    refund access
+
+    delivery investigation
+
+    payment verification
+
+    cancellation approval
+
+    Returns:
+
+    interrupt payload
+
+    approval result
+    """
+
     interrupt_data = {
 
         "waiting_approval":
         True,
 
-        "ticket_id":
-        ticket_id,
-
         "action":
         action,
+
+        "ticket_id":
+        ticket_id,
 
         "question":
         question,
 
         "options":[
-        "YES",
-        "NO"
-        ]
 
-    }
-    approval = interrupt(interrupt_data)
+            "YES",
 
-    return {
+            "NO"
 
-    "waiting_approval":
-    False,
-
-    "resume_execution":
-    True,
-
-    "ticket_id":
-    ticket_id,
-
-    "approved":
-    str(
-    approval
-    ).upper()=="YES",
-    "__interrupt__":[
-            interrupt_data
         ]
 
     }
 
-
-def escalate_to_human(ticket_id:str,team="Support Team A"):
-    """
-Escalate a support ticket to a human support team.
-
-Updates ticket ownership and changes
-status to ESCALATED.
-
-Examples:
-    Fraud detection
-
-    Critical payment issues
-
-    Complex technical problems
-
-Args:
-    ticket_id (str):
-        Ticket to escalate.
-
-    team (str):
-        Target support team.
-
-        Default:
-        Support Team A
-
-Returns:
-    dict:
-        Escalation details including
-        assigned team and status.
-
-Used By:
-    Escalation Agent
-"""
-    print(f"Escalating ticket {ticket_id} to {team}")
-
-    result = escalation_tickets_collection.update_one({"ticket_id":ticket_id},
-        {
-            "$set":{
-                "assigned_to":team,
-                "status":"ESCALATED"
-            }
-        }
+    approval = interrupt(
+        interrupt_data
     )
-    print(f"Ticket {ticket_id} escalated to {team}")
 
+    approved = (
 
-    
+        str(
+            approval
+        ).upper()
+
+        ==
+
+        "YES"
+
+    )
 
     return {
-        "ticket_id":ticket_id,
-        "assigned_team":team,
-        "status":"ESCALATED"
+
+        "status":
+        "SUCCESS",
+
+        "approved":
+        approved,
+
+        "resume_execution":
+        True,
+
+        "waiting_approval":
+        False,
+
+        "ticket_id":
+        ticket_id,
+
+        "__interrupt__":[
+
+            interrupt_data
+
+        ]
+
     }
 
+
+@tool(
+    args_schema=
+    EscalateToHumanInput
+)
+def escalate_to_human(
+    ticket_id:str,
+    team:str="Support Team"
+):
+
+    """
+    Escalate issue.
+
+    Updates:
+
+    assigned team
+
+    ticket status
+
+    Teams:
+
+    Finance Team
+
+    Security Team
+
+    Logistics Team
+
+    Payment Team
+
+    Returns:
+
+    SUCCESS
+
+    NOT_FOUND
+
+    FAILED
+    """
+
+    try:
+
+        if escalation_tickets_collection is None:
+
+            return {
+
+                "status":
+                "FAILED",
+
+                "message":
+                "Database unavailable"
+
+            }
+
+        result = tool_with_retry(
+
+            escalation_tickets_collection.update_one,
+
+            {
+
+                "ticket_id":
+                ticket_id
+
+            },
+
+            {
+
+                "$set":{
+
+                    "assigned_to":
+                    team,
+
+                    "status":
+                    "ESCALATED",
+
+                    "updated_at":
+                    datetime.utcnow()
+
+                }
+
+            }
+
+        )
+
+        if result.matched_count == 0:
+
+            return {
+
+                "status":
+                "NOT_FOUND",
+
+                "ticket_id":
+                ticket_id
+
+            }
+
+        return {
+
+            "status":
+            "SUCCESS",
+
+            "data": {
+
+                "ticket_id":
+                ticket_id,
+
+                "assigned_team":
+                team,
+
+                "ticket_status":
+                "ESCALATED"
+
+            }
+
+        }
+
+    except Exception as e:
+
+        print(
+            "Escalation error:",
+            e
+        )
+
+        return {
+
+            "status":
+            "FAILED",
+
+            "message":
+            "Escalation failed"
+
+        }

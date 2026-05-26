@@ -9,86 +9,13 @@ orders.delete_many({})
 payments.delete_many({})
 refunds.delete_many({})
 
-customers.insert_many([
-
-{
-
-"_id":"cust001",
-
-"name":"Ravi Kumar",
-
-"email":"ravi@gmail.com",
-
-"phone":"+919876543210",
-
-"address":{
-
-"line1":"12 MG Road",
-
-"city":"Hyderabad",
-
-"state":"Telangana",
-
-"country":"India",
-
-"pincode":"500081"
-
-},
-
-"account_status":"ACTIVE",
-
-"email_verified":True,
-
-"created_at":datetime.utcnow(),
-
-"last_login":datetime.utcnow()
-
-},
-
-
-{
-
-"_id":"cust002",
-
-"name":"Priya Sharma",
-
-"email":"priya@gmail.com",
-
-"phone":"+919812345678",
-
-"address":{
-
-"line1":"45 Banjara Hills",
-
-"city":"Hyderabad",
-
-"state":"Telangana",
-
-"country":"India",
-
-"pincode":"500034"
-
-},
-
-"account_status":"LOCKED",
-
-"email_verified":True,
-
-"created_at":datetime.utcnow(),
-
-"last_login":datetime.utcnow()
-
-}
-
-])
-
 orders.insert_many([
 
 {
 
-"_id":"ord001",
+"_id":"ord0003",
 
-"customer_id":"cust001",
+"customer_id":"cust003",
 
 "items":[
 
@@ -124,7 +51,7 @@ orders.insert_many([
 
 "payment_id":"pay001",
 
-"delivery_status":"OUT_FOR_DELIVERY",
+"delivery_status":"RETURNED",
 
 "tracking_status":"IN_TRANSIT",
 
@@ -155,9 +82,9 @@ orders.insert_many([
 
 {
 
-"_id":"ord002",
+"_id":"ord0004",
 
-"customer_id":"cust002",
+"customer_id":"cust003",
 
 "items":[
 
@@ -202,80 +129,16 @@ orders.insert_many([
 ])
 
 
-payments.insert_many([
-
-{
-
-"_id":"pay001",
-
-"customer_id":"cust001",
-
-"order_id":"ord001",
-
-"amount":90000,
-
-"currency":"INR",
-
-"payment_method":"UPI",
-
-"gateway":"Razorpay",
-
-"transaction_id":"TXN001",
-
-"payment_status":"SUCCESS",
-
-"paid_at":datetime.utcnow(),
-
-"fraud_flag":False,
-
-"chargeback":False
-
-},
-
-
-{
-
-"_id":"pay002",
-
-"customer_id":"cust002",
-
-"order_id":"ord002",
-
-"amount":65000,
-
-"currency":"INR",
-
-"payment_method":"CARD",
-
-"gateway":"Stripe",
-
-"transaction_id":"TXN002",
-
-"payment_status":"FAILED",
-
-"error_code":"ERR-PAY-001",
-
-"error_message":"Card declined",
-
-"fraud_flag":False,
-
-"chargeback":False,
-
-"created_at":datetime.utcnow()
-
-}
-
-])
 
 refunds.insert_many([
 
 {
 
-"_id":"ref001",
+"_id":"ref0003",
 
-"customer_id":"cust001",
+"customer_id":"cust003",
 
-"order_id":"ord001",
+"order_id":"ord0003",
 
 "payment_id":"pay001",
 
@@ -297,37 +160,5 @@ refunds.insert_many([
 
 "finance_escalated":True
 
-},
-
-
-{
-
-"_id":"ref002",
-
-"customer_id":"cust002",
-
-"order_id":"ord002",
-
-"payment_id":"pay002",
-
-"return_completed":True,
-
-"refund_requested":True,
-
-"refund_status":"PENDING",
-
-"refund_amount":65000,
-
-"refund_days":4,
-
-"reason":"Shipment damaged",
-
-"requested_at":datetime.utcnow(),
-
-"processed_at":None,
-
-"finance_escalated":False
-
 }
-
 ])

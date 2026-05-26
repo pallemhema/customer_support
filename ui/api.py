@@ -30,176 +30,290 @@ import json
 from fastapi.responses import StreamingResponse
 import json
 import re
+from fastapi.responses import StreamingResponse
+from langchain_core.messages import (
+    HumanMessage,
+    AIMessage
+)
+
+import json
+import re
 
 @app.post("/chat-stream")
-def chat_stream(
-data: ChatRequest
-):
+def chat_stream(data: ChatRequest):
+
+    # ----------------------
+    # LOAD HISTORY
+    # ----------------------
+
+    history_doc = history_collection.find_one(
+        {
+            "thread_id":
+            data.thread_id
+        }
+    )
+
+    history = []
+
+    if history_doc:
+
+        msgs = history_doc.get(
+            "messages",
+            []
+        )
+
+        for msg in msgs:
+
+            role = msg.get(
+                "role"
+            )
+
+            content = msg.get(
+                "content",
+                ""
+            )
+
+            if role == "user":
+
+                history.append(
+
+                    HumanMessage(
+                        content=content
+                    )
+
+                )
+
+            elif role == "assistant":
+
+                history.append(
+
+                    AIMessage(
+                        content=content
+                    )
+
+                )
+
+    print(
+        "TOTAL HISTORY:",
+        len(history)
+    )
+
+    # graph memory only
+
+    graph_history = history[-8:]
+
+    print(
+        "GRAPH HISTORY:",
+        len(graph_history)
+    )
 
     def generate():
 
         stream = support_graph.stream(
 
-        {
+            {
 
-        "customer_id":
-        data.customer_id,
+                "customer_id":
+                data.customer_id,
 
-        "session_id":
-        data.session_id,
+                "session_id":
+                data.session_id,
 
-        "thread_id":
-        data.thread_id,
+                "thread_id":
+                data.thread_id,
 
-        "query":
-        data.query
+                "query":
+                data.query,
 
-        },
+                "messages":
+                graph_history
 
-        config={
+            },
 
-        "configurable":{
+            config={
 
-        "thread_id":
-        data.thread_id
+                "configurable":{
 
-        }
+                    "thread_id":
+                    data.thread_id
 
-        },
+                }
 
-        stream_mode=[
+            },
 
-        "messages",
+            stream_mode=[
 
-        "updates"
+                "messages",
 
-        ]
+                "updates"
+
+            ]
 
         )
+        try:
 
+            for mode, chunk in stream:
 
-        for mode,chunk in stream:
+                # ----------------
+                # TOKEN STREAM
+                # ----------------
 
+                if mode == "messages":
 
-            # ------------------
-            # TOKEN STREAM
-            # ------------------
+                    msg, meta = chunk
 
-            if mode == "messages":
-
-                msg,meta = chunk
-
-                token = getattr(
-                msg,
-                "content",
-                ""
-                )
-
-                if not token:
-
-                    continue
-
-
-                token = re.sub(
-
-                r"<think>.*?</think>",
-
-                "",
-
-                token,
-
-                flags=re.DOTALL
-
-                ).strip()
-
-
-                if token:
-
-                    yield (
-
-                    json.dumps({
-
-                    "type":
-                    "token",
-
-                    "token":
-                    token
-
-                    })
-
-                    +
-
-                    "\n"
-
+                    node = meta.get(
+                        "langgraph_node",
+                        ""
                     )
 
+                    hidden = [
 
-            # ------------------
-            # NODE UPDATES
-            # ------------------
+                        "resolver",
 
-            elif mode == "updates":
+                        "intent",
 
-                if "__interrupt__" in chunk:
+                        "supervisor",
 
-                    yield (
+                        "save_history"
 
-                    json.dumps({
-
-                    "type":
-                    "interrupt",
-
-                    "data":
-                    chunk[
-                    "__interrupt__"
                     ]
 
-                    },
+                    if node in hidden:
 
-                    default=str
+                        continue
+
+                    token = getattr(
+
+                        msg,
+
+                        "content",
+
+                        ""
 
                     )
 
-                    +
+                    if not token:
 
-                    "\n"
-
-                    )
-
-                else:
+                        continue
 
                     yield (
 
-                    json.dumps({
+                        json.dumps({
+
+                            "type":
+                            "token",
+
+                            "token":
+                            token
+
+                        })
+
+                        +
+
+                        "\n"
+
+                    )
+
+                # ----------------
+                # NODE UPDATES
+                # ----------------
+
+                elif mode == "updates":
+
+                    if "__interrupt__" in chunk:
+
+                        yield (
+
+                            json.dumps({
+
+                                "type":
+                                "interrupt",
+
+                                "data":
+                                chunk[
+                                    "__interrupt__"
+                                ]
+
+                            },
+
+                            default=str
+
+                            )
+
+                            +
+
+                            "\n"
+
+                        )
+
+                    else:
+
+                        yield (
+
+                            json.dumps({
+
+                                "type":
+                                "update",
+
+                                "data":
+                                chunk
+
+                            },
+
+                            default=str
+
+                            )
+
+                            +
+
+                            "\n"
+
+                        )
+        except Exception as e:
+
+            print(
+                "STREAM ERROR:",
+                e
+            )
+
+            yield (
+
+                json.dumps({
 
                     "type":
-                    "update",
+                    "error",
 
-                    "data":
-                    chunk
+                    "message":
 
-                    },
+                    """
+        Sorry.
 
-                    default=str
+        The assistant temporarily hit a model limit.
 
-                    )
+        Retrying failed and response generation stopped.
 
-                    +
+        Please try again in a moment.
+        """
 
-                    "\n"
+                })
 
-                    )
+                +
 
+                "\n"
+
+            )
 
     return StreamingResponse(
 
-    generate(),
+        generate(),
 
-    media_type=
-    "text/event-stream"
+        media_type=
+        "text/event-stream"
 
     )
 @app.post("/resume")
+
 
 def resume(data:ResumeRequest):
 
@@ -250,6 +364,7 @@ def resume(data:ResumeRequest):
 
 
     return response
+
 @app.get("/sessions/{customer_id}")
 def get_sessions(customer_id:str):
 

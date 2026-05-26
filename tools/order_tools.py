@@ -1,431 +1,469 @@
 from langchain_core.tools import tool
 from langgraph.types import interrupt
+
 from database.mongo import orders
-from tools.helpers.get_profile import get_profile
-from datetime import datetime
-import uuid
 
-from tools.helpers.get_order import get_order
+from tools.helpers.get_profile import (
+    get_profile
+)
 
-from database.mongo import (
-orders,
-customers
+from tools.helpers.get_order import (
+    get_order
+)
+
+from tools.tool_retry import (
+    tool_with_retry,
+    tool_without_retry
 )
 
 from datetime import datetime
 import uuid
 
 
-
 @tool
 def create_order(
-customer_id:str,
-items:list
+    customer_id:str,
+    items:list
 ):
 
     """
-    Create order workflow
+    Create customer order.
+
+    Workflow:
+
+    1. Validate products
+
+    2. Load customer profile
+
+    3. Ask order approval
+
+    4. Ask address confirmation
+
+    5. Create order
+
+    Args:
+
+        customer_id:
+
+            Customer identifier
+
+        items:
+
+            Product list
+
+            Example:
+
+            [
+                {
+                    "name":"mouse",
+                    "quantity":1
+                }
+            ]
+
+    Returns:
+
+        status
+
+        order_id
+
+        items
+
+        address
+
+    Uses HITL:
+
+        ORDER_CONFIRMATION
+
+        ADDRESS_CONFIRMATION
+
+    Notes:
+
+        No retry around interrupt.
+
+        Retry only for DB operations.
     """
+
+    return tool_without_retry(
+        _create_order,
+        customer_id,
+        items
+    )
+
+
+def _create_order(
+    customer_id,
+    items
+):
 
     if not items:
 
         return {
 
-        "status":
-        "FAILED",
+            "status":
+            "FAILED",
 
-        "response":
-        "No products found"
+            "response":
+            "No products found"
 
         }
 
-
-    customer = get_profile(
-    customer_id
+    customer = tool_with_retry(
+        get_profile,
+        customer_id
     )
 
     if not customer:
 
         return {
 
-        "status":
-        "CUSTOMER_NOT_FOUND",
-
-        "response":
-        "Customer profile unavailable"
+            "status":
+            "CUSTOMER_NOT_FOUND"
 
         }
 
+    processed = []
 
-    processed=[]
-
-    total_items=0
+    total_items = 0
 
     for item in items:
 
         qty = item.get(
-        "quantity",
-        1
+            "quantity",
+            1
         )
 
         processed.append({
 
-        "name":
-        item["name"],
+            "name":
+            item["name"],
 
-        "qty":
-        qty,
+            "qty":
+            qty,
 
-        "price":
-        item.get(
-        "price",
-        0
-        )
+            "price":
+            item.get(
+                "price",
+                0
+            )
 
         })
 
         total_items += qty
 
-
     default_address = customer.get(
-    "address",
-    {}
+        "address",
+        {}
     )
-
-
-    # ------------------
-    # ORDER CONFIRM
-    # ------------------
 
     confirm = interrupt(
 
-    {
+        {
 
-    "waiting_approval":
-    True,
+            "waiting_approval":
+            True,
 
-    "action":
-    "ORDER_CONFIRMATION",
+            "action":
+            "ORDER_CONFIRMATION",
 
-    "question":
+            "question":
 
 f"""
-
-Please confirm order details
+Confirm order
 
 Items:
 
 {processed}
 
-Total Items:
+Total:
 
 {total_items}
 
 Proceed?
-
 """,
 
-    "options":[
+            "options":[
 
-    "YES",
+                "YES",
 
-    "NO"
+                "NO"
 
-    ]
+            ]
 
-    }
+        }
 
     )
 
-
     if str(
-    confirm
+        confirm
     ).upper() != "YES":
 
         return {
 
-        "status":
-        "CANCELLED",
-
-        "response":
-
-"""
-Order creation cancelled
-
-"""
+            "status":
+            "CANCELLED"
 
         }
 
-
-    # ------------------
-    # ADDRESS STEP
-    # ------------------
-
     address_response = interrupt(
 
-    {
+        {
 
-    "action":
-    "ADDRESS_CONFIRMATION",
+            "waiting_address":
+            True,
 
-    "waiting_address":
-    True,
+            "action":
+            "ADDRESS_CONFIRMATION",
 
-    "question":
+            "question":
 
 f"""
-
 Ship to:
 
 {default_address}
 
-Reply YES
+YES
 
-to use saved address
-
-OR
-
-enter new address:
-
-Example:
-
-12 MG Road
-Hyderabad
-Telangana
-India
-500081
-
+or send address
 """,
 
-    "options":[
+            "options":[
 
-    "YES",
+                "YES",
 
-    "ADDRESS"
+                "ADDRESS"
 
-    ]
+            ]
 
-    }
+        }
 
     )
 
-
     shipping_address = default_address
 
-
-    # USE SAVED
-
     if str(
-    address_response
-    ).upper() == "YES":
-
-        shipping_address = default_address
-
-
-    # CUSTOM ADDRESS
-
-    else:
+        address_response
+    ).upper() != "YES":
 
         lines = str(
-        address_response
+            address_response
         ).split(
-        "\n"
+            "\n"
         )
 
         shipping_address = {
 
-        "line1":
+            "line1":
+            lines[0]
+            if len(lines)>0
+            else "",
 
-        lines[0]
+            "city":
+            lines[1]
+            if len(lines)>1
+            else "",
 
-        if len(lines)>0
+            "state":
+            lines[2]
+            if len(lines)>2
+            else "",
 
-        else "",
+            "country":
+            lines[3]
+            if len(lines)>3
+            else "",
 
-        "city":
-
-        lines[1]
-
-        if len(lines)>1
-
-        else "",
-
-        "state":
-
-        lines[2]
-
-        if len(lines)>2
-
-        else "",
-
-        "country":
-
-        lines[3]
-
-        if len(lines)>3
-
-        else "",
-
-        "pincode":
-
-        lines[4]
-
-        if len(lines)>4
-
-        else ""
+            "pincode":
+            lines[4]
+            if len(lines)>4
+            else ""
 
         }
 
-
-    # ------------------
-    # CREATE ORDER
-    # ------------------
-
     order_id = (
 
-    "ord"
+        "ord"
 
-    +
+        +
 
-    uuid.uuid4().hex[
-    :6
-    ]
+        uuid.uuid4().hex[:6]
 
     )
-
 
     order = {
 
-    "_id":
-    order_id,
+        "_id":
+        order_id,
 
-    "order_id":
-    order_id,
+        "order_id":
+        order_id,
 
-    "customer_id":
-    customer_id,
+        "customer_id":
+        customer_id,
 
-    "items":
-    processed,
+        "items":
+        processed,
 
-    "total_items":
-    total_items,
+        "total_items":
+        total_items,
 
-    "currency":
-    "INR",
+        "currency":
+        "INR",
 
-    "delivery_status":
-    "PLACED",
+        "delivery_status":
+        "PLACED",
 
-    "tracking_status":
-    "PENDING",
+        "tracking_status":
+        "PENDING",
 
-    "courier":
-    None,
+        "shipping_address":
+        shipping_address,
 
-    "tracking_id":
-    None,
+        "created_at":
+        datetime.utcnow(),
 
-    "shipping_address":
-    shipping_address,
-
-    "created_at":
-    datetime.utcnow(),
-
-    "updated_at":
-    datetime.utcnow()
+        "updated_at":
+        datetime.utcnow()
 
     }
 
-
-    orders.insert_one(
-    order
+    tool_with_retry(
+        orders.insert_one,
+        order
     )
-
 
     return {
 
-    "status":
-    "PLACED",
+        "status":
+        "PLACED",
 
-    "order_id":
-    order_id,
+        "order_id":
+        order_id,
 
-    "shipping_address":
-    shipping_address,
+        "items":
+        processed,
 
-    "items":
-    processed,
-
-    "response":
-
-f"""
-
-Order created successfully
-
-Order ID:
-
-{order_id}
-
-Items:
-
-{processed}
-
-Shipping Address:
-
-{shipping_address}
-
-Status:
-
-PLACED
-
-"""
+        "shipping_address":
+        shipping_address
 
     }
+
+
 @tool
 def cancel_order(
-customer_id:str,
-order_id:str
+    customer_id:str,
+    order_id:str
 ):
 
     """
-    Cancel order workflow
+    Cancel customer order.
+
+    Workflow:
+
+    1. Load order
+
+    2. Validate state
+
+    3. Ask verification
+
+    4. Ask final approval
+
+    5. Update order
+
+    Uses HITL:
+
+        VERIFY_CANCEL_ORDER
+
+        FINAL_CANCEL
     """
 
-    order = get_order(
-    order_id,
-    customer_id
+    return tool_without_retry(
+        _cancel_order,
+        customer_id,
+        order_id
+    )
+
+
+def _cancel_order(
+    customer_id,
+    order_id
+):
+
+    order = tool_with_retry(
+
+        get_order,
+
+        order_id,
+
+        customer_id
+
     )
 
     if not order:
 
         return {
 
-        "status":
-        "NOT_FOUND",
+            "status":
+            "NOT_FOUND",
 
-        "response":
+            "response":
 
 f"""
-Order {order_id}
-not found
+Order:
 
+{order_id}
+
+not found.
 """
 
         }
 
     delivery_status = order.get(
-    "delivery_status",
-    "PLACED"
+
+        "delivery_status",
+
+        "PLACED"
+
     )
+
+    # --------------------
+    # ALREADY CANCELLED
+    # --------------------
+
+    if delivery_status == "CANCELLED":
+
+        return {
+
+            "status":
+            "ALREADY_CANCELLED",
+
+            "order_id":
+            order_id,
+
+            "response":
+
+f"""
+Order:
+
+{order_id}
+
+is already cancelled.
+
+No further action needed.
+"""
+
+        }
+
+    # --------------------
+    # BLOCKED STATES
+    # --------------------
 
     blocked = [
 
-    "SHIPPED",
+        "SHIPPED",
 
-    "OUT_FOR_DELIVERY",
+        "OUT_FOR_DELIVERY",
 
-    "DELIVERED"
+        "DELIVERED"
 
     ]
 
@@ -433,10 +471,13 @@ not found
 
         return {
 
-        "status":
-        "CANNOT_CANCEL",
+            "status":
+            "CANNOT_CANCEL",
 
-        "response":
+            "order_id":
+            order_id,
+
+            "response":
 
 f"""
 Order:
@@ -448,193 +489,114 @@ Current Status:
 {delivery_status}
 
 Cancellation unavailable.
-
 """
 
         }
 
-    items = order.get(
-    "items",
-    []
-    )
+    # --------------------
+    # HITL
+    # --------------------
 
     verify = interrupt(
 
-    {
+        {
 
-    "waiting_approval":
-    True,
+            "waiting_approval":
+            True,
 
-    "action":
-    "VERIFY_CANCEL_ORDER",
+            "action":
+            "VERIFY_CANCEL_ORDER",
 
-    "order_id":
-    order_id,
-
-    "question":
+            "question":
 
 f"""
-
-Please verify order details
-
-Order ID:
-
-{order_id}
-
-Items:
-
-{items}
-
-Delivery Status:
-
-{delivery_status}
-
-Proceed with cancellation?
-
-""",
-
-    "options":[
-
-    "YES",
-
-    "NO"
-
-    ]
-
-    }
-
-    )
-
-    if str(
-    verify
-    ).upper() != "YES":
-
-        return {
-
-        "status":
-        "REJECTED",
-
-        "response":
-
-f"""
-Cancellation stopped.
-
-Order:
-
-{order_id}
-
-remains active.
-
-"""
-
-        }
-
-    final_confirmation = interrupt(
-
-    {
-
-    "waiting_approval":
-    True,
-
-    "action":
-    "FINAL_CANCEL",
-
-    "order_id":
-    order_id,
-
-    "question":
-
-f"""
-
-Final confirmation
-
 Cancel order:
 
 {order_id}
 
-Continue?
+Current Status:
 
+{delivery_status}
+
+Proceed?
 """,
 
-    "options":[
+            "options":[
 
-    "YES",
+                "YES",
 
-    "NO"
+                "NO"
 
-    ]
+            ]
 
-    }
+        }
 
     )
 
     if str(
-    final_confirmation
+        verify
     ).upper() != "YES":
 
         return {
 
-        "status":
-        "REJECTED",
+            "status":
+            "REJECTED",
 
-        "response":
+            "response":
 
 f"""
-Final cancellation rejected.
+Cancellation rejected.
 
 Order:
 
 {order_id}
 
 remains active.
-
 """
 
         }
 
-    orders.update_one(
+    tool_with_retry(
 
-    {
+        orders.update_one,
 
-    "order_id":
-    order_id
+        {
 
-    },
+            "order_id":
+            order_id
 
-    {
+        },
 
-    "$set":{
+        {
 
-    "delivery_status":
-    "CANCELLED",
+            "$set":{
 
-    "tracking_status":
-    "CANCELLED",
+                "delivery_status":
+                "CANCELLED",
 
-    "cancelled_at":
-    datetime.utcnow(),
+                "tracking_status":
+                "CANCELLED",
 
-    "updated_at":
-    datetime.utcnow()
+                "updated_at":
+                datetime.utcnow()
 
-    }
+            }
 
-    }
+        }
 
     )
 
     return {
 
-    "status":
-    "CANCELLED",
+        "status":
+        "CANCELLED",
 
-    "order_id":
-    order_id,
+        "order_id":
+        order_id,
 
-    "response":
+        "response":
 
 f"""
-
 Order cancelled successfully.
 
 Order ID:
@@ -644,14 +606,10 @@ Order ID:
 Status:
 
 CANCELLED
-
-Tracking:
-
-CANCELLED
-
 """
 
     }
+    
 
 
 @tool

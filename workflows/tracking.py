@@ -1,27 +1,40 @@
 from schemas.supervisor_state_schema import (
-SupportState
+    SupportState
 )
 
 from agents.tracking_agent import (
-tracking_agent
+    tracking_agent
 )
 
 from helpers.clean_text import (
-clean_llm_output
+    clean_llm_output
 )
-from schemas.supervisor_state_schema import SupportState
-from agents.tracking_agent import tracking_agent
-from helpers.extract_id import extract_order_id
 
-def tracking_node(state: SupportState):
+from helpers.extract_id import (
+    extract_order_id
+)
+
+from agents.agent_retry import (
+    stream_agent_with_retry
+)
+
+
+def tracking_node(
+    state: SupportState
+):
 
     print(
-    "Tracking Node execution"
+        "Tracking Node execution"
     )
 
     query = state.get(
+
         "resolved_query",
-        state["query"]
+
+        state[
+            "query"
+        ]
+
     )
 
     order_id = state.get(
@@ -31,20 +44,10 @@ def tracking_node(state: SupportState):
     if not order_id:
 
         order_id = extract_order_id(
-        query
+            query
         )
 
-    response=""
-
-
-    for chunk,meta in tracking_agent.stream(
-
-    {
-        "messages":[
-            (
-            "user",
-
-f"""
+    prompt = f"""
 Customer ID:
 
 {state["customer_id"]}
@@ -66,32 +69,88 @@ Do NOT ask again for customer id.
 Do NOT ask again for order id.
 
 Track immediately.
-
 """
+
+    payload = {
+
+        "messages":[
+
+            (
+
+                "user",
+
+                prompt
+
             )
+
         ]
-    },
 
-    stream_mode="messages"
+    }
 
-    ):
+    response = ""
 
-        token=getattr(
-        chunk,
-        "content",
-        ""
-        )
+    try:
 
-        if not token:
-            continue
+        for event in stream_agent_with_retry(
+
+            tracking_agent,
+
+            payload,
+
+            stream_mode=
+            "messages"
+
+        ):
+
+            chunk, meta = event
+
+            token = getattr(
+
+                chunk,
+
+                "content",
+
+                ""
+
+            )
+
+            if not token:
+
+                continue
+
+            print(
+                "TOKEN:",
+                token
+            )
+
+            response += token
+
+    except Exception as e:
 
         print(
-        "TOKEN:",
-        token
+            "Tracking failed:",
+            e
         )
 
-        response += token
+        response = """
 
+Unable to retrieve tracking information.
+
+Please try again later.
+
+"""
+
+    response = clean_llm_output(
+        response
+    )
+
+    if not response.strip():
+
+        response = """
+
+Tracking information unavailable.
+
+"""
 
     return {
 
@@ -102,6 +161,24 @@ Track immediately.
         response,
 
         "response":
+        response,
+        "messages":[
+
+    (
+
+        "user",
+
+        state["query"]
+
+    ),
+
+    (
+
+        "assistant",
+
         response
 
+    )
+
+]
     }

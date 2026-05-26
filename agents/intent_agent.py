@@ -1,14 +1,9 @@
 from langchain.agents import create_agent
 
-from agents.llm import get_llm
 
-
-llm = get_llm()
 
 from langchain.agents import create_agent
-from agents.llm import get_llm
-
-llm = get_llm()
+from agents.llm import llm
 
 intent_agent = create_agent(
 
@@ -27,6 +22,12 @@ Understand the REAL meaning of the customer query.
 Do semantic reasoning.
 
 Do NOT rely only on keywords.
+
+Classify ONLY current query.
+
+Ignore previous chat history.
+
+Do not use conversation memory.
 
 Decide whether the customer:
 

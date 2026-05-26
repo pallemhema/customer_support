@@ -2,7 +2,7 @@ from langchain.agents import (
 create_agent
 )
 
-from agents.llm import get_llm
+
 
 from tools.escalation.refund_escalation import (
 handle_refund
@@ -19,9 +19,10 @@ handle_payment
 from tools.escalation.account_escalation import (
 handle_account
 )
+from agents.llm import llm
 
 
-llm = get_llm()
+
 
 
 system_prompt = """
@@ -104,6 +105,7 @@ handle_payment,
 handle_account
 
 ],
+
 
 system_prompt=system_prompt
 

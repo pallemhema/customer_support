@@ -1,4 +1,10 @@
 from pymongo import MongoClient
+from pymongo.errors import (
+    ConnectionFailure,
+    ServerSelectionTimeoutError,
+    ConfigurationError
+)
+
 from dotenv import load_dotenv
 import os
 
@@ -6,25 +12,71 @@ load_dotenv()
 
 MONGO_URI = os.getenv("MONGO_URI")
 
-client = MongoClient(MONGO_URI)
+client = None
+db = None
 
-db = client["agentic_support"]
+try:
 
-sessions_collection = db["sessions"]
-messages_collection = db["messages"]
+    client = MongoClient(
+        MONGO_URI,
+        serverSelectionTimeoutMS=5000
+    )
 
-escalation_tickets_collection = db["escalation_tickets"]
+    # test connection
+    client.admin.command("ping")
 
-followup_tickets_collection = db["followup_tickets"]
+    db = client["agentic_support"]
 
-knowledge_collection = db["knowledge"]
+    sessions_collection = db["sessions"]
+    messages_collection = db["messages"]
 
-history_collection = db["history"]
+    escalation_tickets_collection = db[
+        "escalation_tickets"
+    ]
 
+    followup_tickets_collection = db[
+        "followup_tickets"
+    ]
 
-customers = db["customers"]
-orders = db["orders"]
-payments = db["payments"]
-refunds = db["refunds"]
-escalations = db["escalations"]
+    knowledge_collection = db[
+        "knowledge"
+    ]
 
+    history_collection = db[
+        "history"
+    ]
+
+    customers = db["customers"]
+    orders = db["orders"]
+    payments = db["payments"]
+    refunds = db["refunds"]
+    escalations = db["escalations"]
+
+    print(
+        "MongoDB connected successfully"
+    )
+
+except (
+    ConnectionFailure,
+    ServerSelectionTimeoutError,
+    ConfigurationError
+) as e:
+
+    print(
+        f"Mongo connection failed: {e}"
+    )
+
+    sessions_collection = None
+    messages_collection = None
+
+    escalation_tickets_collection = None
+    followup_tickets_collection = None
+
+    knowledge_collection = None
+    history_collection = None
+
+    customers = None
+    orders = None
+    payments = None
+    refunds = None
+    escalations = None

@@ -1,23 +1,28 @@
+from agents.response_agent import (
+    response_agent
+)
 
+from helpers.clean_text import (
+    clean_llm_output
+)
 
+from agents.agent_retry import (
+    stream_agent_with_retry
+)
 
-from agents.response_agent import response_agent
-from helpers.clean_text import clean_llm_output
-from agents.response_agent import response_agent
-from helpers.clean_text import clean_llm_output
 
 def response_node(
-state
+    state
 ):
 
     print(
-    "RESPONSE NODE EXECUTION"
+        "RESPONSE NODE EXECUTION"
     )
 
     text = ""
 
     if state.get(
-    "intent"
+        "intent"
     ) == "greeting_intent":
 
         text += f"""
@@ -32,46 +37,49 @@ Respond warmly.
 Keep response short.
 """
 
-
     if state.get(
-    "retrieved_docs"
-    ):
-
-        text += str(
-        state[
         "retrieved_docs"
-        ]
-        )
-
-
-    if state.get(
-    "escalation_result"
     ):
 
         text += "\n"
 
         text += str(
-        state[
+
+            state[
+                "retrieved_docs"
+            ]
+
+        )
+
+    if state.get(
         "escalation_result"
-        ]
-        )
-
-
-    if state.get(
-    "followup"
     ):
 
         text += "\n"
 
         text += str(
-        state[
-        "followup"
-        ]
+
+            state[
+                "escalation_result"
+            ]
+
         )
 
+    if state.get(
+        "followup"
+    ):
+
+        text += "\n"
+
+        text += str(
+
+            state[
+                "followup"
+            ]
+
+        )
 
     prompt = f"""
-
 Customer Query:
 
 {state['query']}
@@ -81,96 +89,122 @@ Context:
 {text}
 
 Generate response
-
 """
 
+    payload = {
+
+        "messages":[
+
+            (
+
+                "user",
+
+                prompt
+
+            )
+
+        ]
+
+    }
 
     response = ""
 
-    for chunk,meta in response_agent.stream(
+    try:
 
-    {
+        for event in stream_agent_with_retry(
 
-    "messages":[
+            response_agent,
 
-    (
+            payload,
 
-    "user",
+            stream_mode=
+            "messages"
 
-    prompt
+        ):
 
-    )
+            chunk, meta = event
 
-    ]
+            token = getattr(
 
-    },
+                chunk,
 
-    stream_mode="messages"
+                "content",
 
-    ):
+                ""
 
-        token = getattr(
+            )
 
-        chunk,
+            if not token:
 
-        "content",
+                continue
 
-        ""
+            print(
+                "TOKEN:",
+                token
+            )
 
-        )
+            response += token
 
-
-        if not token:
-
-            continue
-
+    except Exception as e:
 
         print(
-        "TOKEN:",
-        token
+            "Response failed:",
+            e
         )
 
+        response = """
 
-        response += token
+Sorry.
 
+Unable to generate response now.
+
+Please try again.
+
+"""
 
     response = clean_llm_output(
-    response
+        response
     )
 
+    if not response.strip():
+
+        response = """
+
+No response generated.
+
+Please retry.
+
+"""
 
     print(
-    "FINAL:",
-    response
+        "FINAL:",
+        response
     )
-
-   
 
     return {
 
-    "response":
-    response,
+        "response":
+        response,
 
-    "messages":[
+        "messages":[
 
-    (
+            (
 
-    "user",
+                "user",
 
-    state[
-    "query"
-    ]
+                state[
+                    "query"
+                ]
 
-    ),
+            ),
 
-    (
+            (
 
-    "assistant",
+                "assistant",
 
-    response
+                response
 
-    )
+            )
 
-    ]
-
+        ]
     }

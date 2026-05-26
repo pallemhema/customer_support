@@ -1,27 +1,41 @@
-from agents.order_agent import order_agent
-from helpers.clean_text import clean_llm_output
-from schemas.supervisor_state_schema import SupportState
-import re
+from agents.order_agent import (
+    order_agent
+)
+
+from helpers.clean_text import (
+    clean_llm_output
+)
+
+from schemas.supervisor_state_schema import (
+    SupportState
+)
+
+from agents.agent_retry import (
+    stream_agent_with_retry
+)
 
 
 def order_node(
-state: SupportState
+    state: SupportState
 ):
 
     print(
-    "ORDER NODE EXECUTION"
+        "ORDER NODE EXECUTION"
     )
-
 
     query = state.get(
-    "resolved_query",
-    state["query"]
+
+        "resolved_query",
+
+        state[
+            "query"
+        ]
+
     )
 
-
     response = ""
-    prompt = f"""
 
+    prompt = f"""
 Customer ID:
 
 {state["customer_id"]}
@@ -46,114 +60,119 @@ extract order id
 List orders:
 send customer_id
 
-Never ask customer again for customer id.
+Never ask customer again.
 
-Perform order action immediately.
-
+Perform action immediately.
 """
 
+    try:
 
-    for chunk,meta in order_agent.stream(
+        for event in stream_agent_with_retry(
 
-    {
+            order_agent,
 
-    "messages":[
+            {
 
-    (
+                "messages":[
 
-    "user",
+                    (
 
-    prompt
+                        "user",
 
-    )
+                        prompt
 
-    ]
+                    )
 
-    },
+                ]
 
-    stream_mode="messages"
+            },
 
-    ):
+            stream_mode=
+            "messages"
 
-        token = getattr(
+        ):
 
-        chunk,
+            chunk, meta = event
 
-        "content",
+            token = getattr(
 
-        ""
+                chunk,
 
-        )
+                "content",
 
+                ""
 
-        if not token:
+            )
 
-            continue
+            if not token:
 
+                continue
 
-        print(
-        "TOKEN:",
-        token
-        )
+            print(
+                "TOKEN:",
+                token
+            )
 
+            response += token
 
-        response += token
+    except Exception as e:
 
+            print(
+                "Order node failed:",
+                e
+            )
 
-        # remove reasoning
+            if "Interrupt(" in str(e):
 
-        response = re.sub(
+                raise e
 
-        r"<think>.*?</think>",
+            return {
 
-        "",
+                "response":
+                """
+        Unable to process order request.
 
-        response,
-
-        flags=re.DOTALL
-
-        )
-
+        Please retry.
+        """
+            }
 
     output = clean_llm_output(
-    response
+        response
     )
-
 
     print(
-    "FINAL:",
-    output
+        "FINAL:",
+        output
     )
-
 
     return {
 
-    "response":
-    output,
+        "response":
+        output,
 
-    "order_result":
-    output,
+        "order_result":
+        output,
 
-    "messages":[
+        "messages":[
 
-    (
+            (
 
-    "user",
+                "user",
 
-    state[
-    "query"
-    ]
+                state[
+                    "query"
+                ]
 
-    ),
+            ),
 
-    (
+            (
 
-    "assistant",
+                "assistant",
 
-    output
+                output
 
-    )
+            )
 
-    ]
+        ]
 
     }

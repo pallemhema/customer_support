@@ -1,9 +1,8 @@
 from schemas.supervisor_state_schema import (SupportState)
-from agents.llm import get_llm
-from helpers.clean_text import clean_llm_output
-llm = get_llm()
-import re
 
+from helpers.clean_text import clean_llm_output
+
+from agents.llm import llm
 def resolver_node(
 state: SupportState
 ):
@@ -21,6 +20,14 @@ state: SupportState
     "messages",
     []
     )
+
+    
+
+    history = history[-8:]
+
+    state["messages"] = history
+    
+    print("History: ", history)
     
 
     reference_words = [

@@ -1,10 +1,9 @@
 from langchain.agents import create_agent
 
-from agents.llm import get_llm
+
 
 from tools.order_tools import (create_order,cancel_order,list_customer_orders)
-
-llm = get_llm()
+from agents.llm import llm
 
 order_agent = create_agent(
 model=llm,

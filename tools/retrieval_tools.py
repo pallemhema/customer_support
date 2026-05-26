@@ -1,67 +1,112 @@
 from rag.retriever import get_retriever
 
-
 from langchain_core.tools import tool
-from schemas.retriever_schema import RetrieveChatHistoryInput, RetrieveDocsInput, RetrieveTicketHistoryInput, SimilarIssueSearchInput
+
+from schemas.retriever_schema import (
+    RetrieveDocsInput
+)
+
+from tools.tool_retry import tool_with_retry
 
 
 @tool(args_schema=RetrieveDocsInput)
-def retrieve_docs(query:str, k:int=3):
-
+def retrieve_docs(
+    query: str,
+    k: int = 3
+):
     """
-Retrieve relevant documents from the RAG knowledge base.
+    Retrieve relevant documents from
+    the RAG knowledge base.
 
-Searches the vector database using semantic
-similarity and returns the most relevant
-documents for the customer query.
+    Searches semantic vectors and
+    returns relevant support content.
 
-Knowledge sources:
-    FAQ documents
+    Sources:
 
-    Policies
+        FAQ documents
 
-    Manuals
+        Policies
 
-    Support knowledge base
+        Manuals
 
-Args:
-    query (str):
-        Customer question or issue.
+        Support KB
 
-    k (int):
-        Number of documents to retrieve.
+    Args:
 
-        Default:
-        3
+        query:
+            Customer issue/query.
 
-Returns:
-    list:
-        Retrieved documents containing:
+        k:
+            Number of documents.
 
-        - content
-        - metadata
+            Default:
+            3
 
-Used By:
-    Retrieval Agent
-    Response Agent
-"""
-    retriever = get_retriever()
-    print(f"Retrieving documents for query: {query}")
-    docs = retriever.invoke(query, k=k)
-    print(f"Retrieved {len(docs)} documents")
+    Returns:
 
-    context = []
+        status:
+            SUCCESS / NOT_FOUND / FAILED
 
-    for d in docs:
+        data:
 
-        context.append(
-            {
-                "content": d.page_content,
-                "source": d.metadata
-            }
+            content
+
+            metadata
+
+            source info
+    """
+
+    try:
+
+        retriever = tool_with_retry(
+            get_retriever
         )
-    print(f"Formatted context: {context}")
 
-    return context
+        docs = tool_with_retry(
+            retriever.invoke,
+            query
+        )
 
+        if not docs:
 
+            return {
+
+                "status":
+                "NOT_FOUND",
+
+                "query":
+                query
+            }
+
+        context = []
+
+        for d in docs[:k]:
+
+            context.append({
+
+                "content":
+                d.page_content,
+
+                "metadata":
+                d.metadata
+            })
+
+        return {
+
+            "status":
+            "SUCCESS",
+
+            "data":
+            context
+        }
+
+    except Exception:
+
+        return {
+
+            "status":
+            "FAILED",
+
+            "message":
+            "Knowledge retrieval unavailable"
+        }

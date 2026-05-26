@@ -1,15 +1,25 @@
 from database.mongo import orders
 
-def get_order(order_id,customer_id):
+from tools.tool_retry import (
+    tool_with_retry
+)
 
-    order = orders.find_one(
-        {
-            "_id":order_id,
-            "customer_id":customer_id
-        }
-    )
 
-    if not order:
+def get_order(
+    order_id,
+    customer_id
+):
+
+
+    try:
+        if orders is None:
+            return None
+
+        order = tool_with_retry(orders.find_one,{"_id":order_id,"customer_id":customer_id})
+
+        if not order:
+            return None
+        return order
+
+    except Exception:
         return None
-
-    return order

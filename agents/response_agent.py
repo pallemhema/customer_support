@@ -1,13 +1,8 @@
 from langchain.agents import create_agent
 
-from agents.llm import get_llm
-
-from tools.retrieval_tools import (
-    retrieve_docs
-)
 
 
-llm = get_llm()
+from agents.llm import llm
 response_agent = create_agent(
 
 model=llm,

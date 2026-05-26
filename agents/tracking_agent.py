@@ -2,12 +2,11 @@ from langchain.agents import (
 create_agent
 )
 
-from agents.llm import (get_llm)
+
 
 from tools.tracking_tools import (track_ticket,track_order,track_refund,get_customer_profile)
 
-
-llm = get_llm()
+from agents.llm import llm
 
 from langchain.agents import create_agent
 

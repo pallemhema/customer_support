@@ -1,13 +1,11 @@
 
 from langchain.agents import create_agent
 
-from agents.llm import get_llm
 
 from tools.followup_tools import (
 schedule_followup
 )
-
-llm = get_llm()
+from agents.llm import llm
 
 followup_agent = create_agent(
 

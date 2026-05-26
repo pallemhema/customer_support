@@ -1,59 +1,56 @@
-
-
 from schemas.supervisor_state_schema import (
-SupportState
+    SupportState
 )
 
 from agents.followup_agent import (
-followup_agent
+    followup_agent
 )
 
 from helpers.clean_text import (
-clean_llm_output
+    clean_llm_output
+)
+
+from agents.agent_retry import (
+    stream_agent_with_retry
 )
 
 
-
 def followup_node(
-state: SupportState
+    state: SupportState
 ):
 
     print(
-    "Followup Node Execution"
+        "Followup Node Execution"
     )
-
 
     print(
-    state
+        state
     )
-
 
     ticket_id = state.get(
-    "ticket_id"
+        "ticket_id"
     )
-
 
     if not ticket_id:
 
         return {
 
-        "followup":
-        None
+            "followup":
+            None,
 
+            "needs_followup":
+            False
         }
-
 
     escalation_response = state.get(
 
-    "response",
+        "response",
 
-    ""
+        ""
 
     )
 
-
     prompt = f"""
-
 Ticket:
 
 {ticket_id}
@@ -65,122 +62,175 @@ Do not create ticket.
 Existing escalation response:
 
 {escalation_response}
-
 """
 
+    payload = {
 
-    # -------------------
-    # STREAM RESPONSE
-    # -------------------
+        "messages":[
+
+            (
+
+                "user",
+
+                prompt
+
+            )
+
+        ]
+
+    }
 
     response = ""
 
+    try:
 
-    for chunk,meta in followup_agent.stream(
+        for event in stream_agent_with_retry(
 
-    {
+            followup_agent,
 
-    "messages":[
+            payload,
 
-    (
+            stream_mode=
+            "messages"
 
-    "user",
+        ):
 
-    prompt
+            chunk, meta = event
 
-    )
+            token = getattr(
 
-    ]
+                chunk,
 
-    },
+                "content",
 
-    stream_mode="messages"
+                ""
 
-    ):
+            )
 
-        token = getattr(
+            if not token:
 
-        chunk,
+                continue
 
-        "content",
+            print(
+                "TOKEN:",
+                token
+            )
 
-        ""
+            response += token
 
-        )
-
-
-        if not token:
-
-            continue
-
+    except Exception as e:
 
         print(
-        "TOKEN:",
-        token
+            "Followup failed:",
+            e
         )
 
+        return {
 
-        response += token
+            "followup":
+            None,
 
+            "needs_followup":
+            False,
+
+            "response":
+
+            state.get(
+                "response",
+                ""
+            ),
+
+            "messages":[
+
+                (
+
+                    "user",
+
+                    state[
+                        "query"
+                    ]
+
+                ),
+
+                (
+
+                    "assistant",
+
+                    state.get(
+                        "response",
+                        ""
+                    )
+
+                )
+
+            ]
+        }
 
     output = clean_llm_output(
-    response
+        response
     )
-
 
     print(
-    "FOLLOWUP FINAL:",
-    output
+        "FOLLOWUP FINAL:",
+        output
     )
 
-
     final_response = f"""
-
 {escalation_response}
 
 {output}
-
 """
-
 
     return {
 
-    "followup":
-    output,
+        "followup":
+        output,
 
-    "response":
-    final_response,
+        "needs_followup":
+        False,
 
-    "messages":[
+        "response":
+        final_response,
 
-    (
+        "messages":[
 
-    "user",
+            (
 
-    state[
-    "query"
-    ]
+                "user",
 
-    ),
+                state[
+                    "query"
+                ]
 
-    (
+            ),
 
-    "assistant",
+            (
 
-    final_response
+                "assistant",
 
+                final_response
+
+            )
+
+        ]
+    }
+
+
+def followup_router(
+    state
+):
+
+    print(
+        "Graph state at followup router:",
+        state
     )
 
-    ]
-
-    }
-def followup_router(state):
-
-    print("Graph state at followup router: ", state)
-
     if state.get(
+
         "needs_followup",
+
         False
+
     ):
 
         return "followup"

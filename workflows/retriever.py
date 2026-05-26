@@ -1,65 +1,147 @@
-
-
 from schemas.sequential_state_schema import (
     SupportState
 )
-
 
 from agents.retrieval_agent import (
     retrieval_agent
 )
 
+from helpers.clean_text import (
+    clean_llm_output
+)
 
-from helpers.clean_text import clean_llm_output
+from agents.agent_retry import (
+    agent_with_retry
+)
 
 
-def retrieval_node(state: SupportState):
-    print("retrieval_node Node execution")
-    query = state.get(
-        "resolved_query",
-        state["query"]
-        )
+def retrieval_node(
+    state: SupportState
+):
 
-    result = retrieval_agent.invoke(
-    {
-        "messages":[("user",f"""Customer Query:{query}Intent:{state['intent']}
-Retrieve information.
-Return final response.
-"""
-        )
-        ]
-    }
+    print(
+        "retrieval_node Node execution"
     )
-    
+
+    query = state.get(
+
+        "resolved_query",
+
+        state[
+            "query"
+        ]
+
+    )
 
     final_output = ""
 
-    for msg in reversed(
-        result["messages"]
-    ):
+    try:
 
-        content = getattr(
-            msg,
-            "content",
-            ""
+        result = agent_with_retry(
+
+            retrieval_agent,
+
+            {
+
+                "messages":[
+
+                    (
+
+                        "user",
+
+f"""
+Customer Query:
+
+{query}
+
+Intent:
+
+{state['intent']}
+
+Retrieve information.
+
+Return final response.
+"""
+
+                    )
+
+                ]
+
+            }
+
         )
 
-        if (
-            isinstance(
-                content,
-                str
+        messages = result.get(
+            "messages",
+            []
+        )
+
+        if not messages:
+
+            raise Exception(
+                "No retrieval output"
             )
-            and
-            content.strip()
+
+        for msg in reversed(
+            messages
         ):
-            content = clean_llm_output(
-            content
+
+            content = getattr(
+
+                msg,
+
+                "content",
+
+                ""
+
             )
 
-            final_output = content
+            if (
 
-            break
+                isinstance(
+                    content,
+                    str
+                )
 
-    return {"retrieved_docs":final_output,}
+                and
 
+                content.strip()
 
+            ):
+
+                content = clean_llm_output(
+                    content
+                )
+
+                final_output = content
+
+                break
+
+    except Exception as e:
+
+        print(
+            "Retrieval failed:",
+            e
+        )
+
+        final_output = """
+
+Knowledge retrieval unavailable.
+
+Proceeding without documents.
+
+"""
+
+    if not final_output.strip():
+
+        final_output = """
+
+No relevant documents found.
+
+"""
+
+    return {
+
+        "retrieved_docs":
+        final_output
+    }

@@ -1,8 +1,3 @@
-from database.mongo import (
-    followup_tickets_collection,
-   
-)
-
 from datetime import (
     datetime,
     timedelta
@@ -10,78 +5,172 @@ from datetime import (
 
 from langchain_core.tools import tool
 
-from schemas.followup_schemas import (
-    ScheduleFollowupInput)
-
-@tool(
-args_schema=ScheduleFollowupInput
+from database.mongo import (
+    followup_tickets_collection
 )
 
-def schedule_followup(ticket_id:str,hours:int=24):
+from schemas.followup_schemas import (
+    ScheduleFollowupInput
+)
 
+from tools.tool_retry import (
+    tool_with_retry
+)
+
+
+@tool(
+    args_schema=
+    ScheduleFollowupInput
+)
+def schedule_followup(
+    ticket_id: str,
+    hours: int = 24
+):
     """
-    Schedule followup for ticket
+    Schedule follow up for an
+    escalated support ticket.
+
+    Creates or updates a followup
+    entry in database.
+
+    Args:
+
+        ticket_id:
+
+            Escalated ticket id.
+
+        hours:
+
+            Delay before followup.
+
+            Default:
+            24 hours
+
+    Returns:
+
+        SUCCESS
+
+        FAILED
+
+        Data includes:
+
+            ticket id
+
+            followup time
+
+            followup status
+
+            creation time
+
+    Used By:
+
+        Escalation Agent
+
+        Followup Workflow
+
+    Notes:
+
+        Existing followups are updated.
+
+        New followups use upsert.
     """
 
-    followup_time = (
+    try:
 
-    datetime.utcnow()
+        if followup_tickets_collection is None:
 
-    +
+            return {
 
-    timedelta(
-        hours=hours
-    )
+                "status":
+                "FAILED",
 
-    )
+                "message":
+                "Database unavailable"
+            }
 
-    data = {
+        followup_time = (
 
-    "escalated_ticket_id":
-    ticket_id,
+            datetime.utcnow()
 
-    "followup_at":
-    followup_time,
+            +
 
-    "status":
-    "SCHEDULED",
+            timedelta(
+                hours=hours
+            )
 
-    "created_at":
-    datetime.utcnow()
+        )
 
-    }
+        data = {
 
-    followup_tickets_collection.update_one(
+            "escalated_ticket_id":
+            ticket_id,
 
-    {
+            "followup_at":
+            followup_time,
 
-    "escalated_ticket_id":
-    ticket_id
+            "status":
+            "SCHEDULED",
 
-    },
+            "created_at":
+            datetime.utcnow()
+        }
 
-    {
+        tool_with_retry(
 
-    "$set":
-    data
+            followup_tickets_collection.update_one,
 
-    },
+            {
 
-    upsert=True
+                "escalated_ticket_id":
+                ticket_id
 
-    )
+            },
 
-    return {
+            {
 
-    "escalated_ticket_id":
-    ticket_id,
+                "$set":
+                data
 
-    "followup_time":
-    str(
-        followup_time
-    ),
+            },
 
-    "status":
-    "SCHEDULED"
+            upsert=True
 
-    }
+        )
+
+        return {
+
+            "status":
+            "SUCCESS",
+
+            "data": {
+
+                "ticket_id":
+                ticket_id,
+
+                "followup_time":
+                str(
+                    followup_time
+                ),
+
+                "followup_status":
+                "SCHEDULED",
+
+                "created_at":
+                str(
+                    data[
+                        "created_at"
+                    ]
+                )
+            }
+        }
+
+    except Exception:
+
+        return {
+
+            "status":
+            "FAILED",
+
+            "message":
+            "Followup scheduling failed"
+        }

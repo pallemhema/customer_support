@@ -1,22 +1,19 @@
 from database.mongo import payments
 
-def get_payment(order_id,customer_id):
+from tools.tool_retry import (
+    tool_with_retry
+)
 
-    return payments.find_one(
-        {
-            "order_id":order_id,
-            "customer_id":customer_id
-        }
-    )
+    
+def get_payment(order_id:str,customer_id:str):
+    try:
+            
+        if payments is None:
+            return None
 
-
-def payment_success(order_id):
-
-    payment = get_payment(order_id)
-
-    if not payment:
-        return False
-
-    return payment.get(
-        "payment_status"
-    ) == "SUCCESS"
+        payment = tool_with_retry(payments.find_one,{"_id":customer_id   })
+        if not payment:
+            return None
+        return payment
+    except Exception:
+        return None
