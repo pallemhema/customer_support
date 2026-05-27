@@ -15,8 +15,10 @@ def get_profile(customer_id:str):
             
         if customers is None:
             return None
+        print("customer id: ", customer_id)
 
         profile = tool_with_retry(customers.find_one,{"_id":customer_id   })
+        print("profile: ", profile)
         if not profile:
             return None
         return profile

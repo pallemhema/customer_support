@@ -11,7 +11,7 @@ def get_payment(order_id:str,customer_id:str):
         if payments is None:
             return None
 
-        payment = tool_with_retry(payments.find_one,{"_id":customer_id   })
+        payment = tool_with_retry(payments.find_one,{"customer_id":customer_id,"order_id":order_id   })
         if not payment:
             return None
         return payment

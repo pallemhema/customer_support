@@ -117,7 +117,7 @@ def _handle_account(
                 "status":
                 "PROFILE_NOT_FOUND",
 
-                "message":
+                "response":
                 "Customer profile unavailable"
 
             }

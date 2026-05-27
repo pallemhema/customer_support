@@ -13,11 +13,13 @@ def get_order(
 
     try:
         if orders is None:
+            print("no orders table exists")
             return None
 
         order = tool_with_retry(orders.find_one,{"_id":order_id,"customer_id":customer_id})
 
         if not order:
+            print("no order exists")
             return None
         return order
 

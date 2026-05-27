@@ -65,10 +65,6 @@ if "thread_id" not in st.session_state:
 
 with st.sidebar:
 
-    st.title(
-    "🛎 Customer Support"
-    )
-
     customer=st.text_input(
     "Customer ID",
     st.session_state.customer_id
@@ -155,7 +151,7 @@ f"{API}/history/{latest['thread_id']}"
 
 
     if st.button(
-    "➕ New Chat",
+    "New Chat",
     use_container_width=True
     ):
 
@@ -185,7 +181,7 @@ f"{API}/history/{latest['thread_id']}"
     st.divider()
 
     st.subheader(
-    "💬 Sessions"
+    "Sessions"
     )
 
     try:
@@ -198,57 +194,133 @@ f"{API}/sessions/{customer}"
 
         sessions=[]
 
-
     for s in sessions:
 
-        label=s.get(
-        "title",
-        "New Chat"
+        label = s.get(
+            "title",
+            "New Chat"
         )
 
-        if len(label)>35:
+        if len(label) > 35:
 
-            label=label[:35]+"..."
+            label = label[:35] + "..."
 
-        if st.button(
-        label,
-        key=s["thread_id"]
-        ):
+        col1, col2 = st.columns(
+            [8,1]
+        )
 
-            history=requests.get(
+        # ----------------
+        # OPEN SESSION
+        # ----------------
 
-f"{API}/history/{s['thread_id']}"
+        with col1:
 
-            ).json()
+            if st.button(
 
-            st.session_state.thread_id=s[
-            "thread_id"
-            ]
+                label,
 
-            st.session_state.session_id=s[
-            "session_id"
-            ]
+                key=f"open_{s['thread_id']}",
 
-            st.session_state.messages=(
+                use_container_width=True
 
-            history.get(
-            "messages",
-            []
-            )
+            ):
 
-            )
+                history = requests.get(
 
-            st.session_state.interrupt=None
+    f"{API}/history/{s['thread_id']}"
 
-            st.rerun()
+                ).json()
 
+                st.session_state.thread_id = (
 
+                    s[
+                    "thread_id"
+                    ]
+
+                )
+
+                st.session_state.session_id = (
+
+                    s[
+                    "session_id"
+                    ]
+
+                )
+
+                st.session_state.messages = (
+
+                    history.get(
+                        "messages",
+                        []
+                    )
+
+                )
+
+                st.session_state.interrupt = None
+
+                st.rerun()
+
+        # ----------------
+        # DELETE SESSION
+        # ----------------
+
+        with col2:
+
+            if st.button(
+
+                "🗑️",
+
+                key=f"delete_{s['thread_id']}",
+
+                use_container_width=True
+
+            ):
+
+                requests.delete(
+
+    f"{API}/session/{s['thread_id']}"
+
+                )
+
+                # current session deleted
+
+                if (
+
+                    st.session_state.thread_id
+
+                    ==
+
+                    s["thread_id"]
+
+                ):
+
+                    sid = str(
+                        uuid.uuid4()
+                    )
+
+                    st.session_state.session_id = sid
+
+                    st.session_state.thread_id = (
+
+    f"{customer}_{sid}"
+
+                    )
+
+                    st.session_state.messages = []
+
+                    st.session_state.interrupt = None
+
+                    st.session_state.processing = False
+
+                    st.session_state.loading = False
+
+                st.rerun()
 # --------------------------------
 # CHAT
 # --------------------------------
 
 st.title(
-"🤖 Customer Support Assistant"
+"Customer Support Assistant"
 )
 
 for msg in st.session_state.messages:

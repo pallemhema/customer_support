@@ -50,6 +50,7 @@ def create_ticket(
 
     ticket details
     """
+    print("create ticket called")
 
     try:
 
@@ -189,6 +190,8 @@ def request_hitl(
 
     approval result
     """
+    print("hitl called")
+
 
     interrupt_data = {
 
@@ -292,6 +295,8 @@ def escalate_to_human(
 
     FAILED
     """
+    print("escalate to human called")
+
 
     try:
 

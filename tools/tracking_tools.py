@@ -169,6 +169,8 @@ def track_order(
             amount
     """
 
+    print("order id:", order_id)
+
     try:
 
         order = tool_with_retry(
@@ -294,11 +296,13 @@ def get_customer_profile(
     """
 
     try:
+        print("customer id: ", customer_id)
 
         profile = tool_with_retry(
             get_profile,
             customer_id
         )
+        print("profile:", profile)
 
         if not profile:
 

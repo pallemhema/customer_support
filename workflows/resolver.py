@@ -23,7 +23,7 @@ state: SupportState
 
     
 
-    history = history[-8:]
+    history = history[-4:]
 
     state["messages"] = history
     

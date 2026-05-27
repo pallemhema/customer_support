@@ -720,21 +720,10 @@ product:str=None
 
     """
 
-    query={
+    query={"customer_id":customer_id}
 
-    "customer_id":
-    customer_id
+    docs=list(orders.find(query))
 
-    }
-
-    docs=list(
-
-    orders.find(
-    query,
-    {"_id":0}
-    )
-
-    )
 
 
     if status:
@@ -814,12 +803,16 @@ orders found
         }
 
 
+   
+
     return {
 
-    "count":
-    len(docs),
+    "status":"SUCCESS",
 
-    "orders":
-    docs
+    "count":len(docs),
+
+    "orders":docs,
+
+    "response":docs
 
     }

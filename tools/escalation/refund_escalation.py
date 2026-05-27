@@ -39,6 +39,8 @@ def handle_refund(
     request_hitl
     """
 
+    print("handle refund escalation called")
+
     return tool_without_retry(
 
         _handle_refund,
@@ -71,6 +73,7 @@ def _handle_refund(
 ):
 
     actions=[]
+    print("handle refund escalation called")
 
     try:
 
@@ -174,7 +177,7 @@ for order {order_id}
             0
         )
 
-        if refund_amount < 5000:
+        if refund_amount < 50000:
 
             try:
 

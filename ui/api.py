@@ -3,10 +3,14 @@ from pydantic import BaseModel
 from database.mongo import history_collection
 from workflows.graph import support_graph
 from langgraph.types import Command
-from agents.escalation_agent import escalation_agent
-from agents.response_agent  import response_agent
-from agents.order_agent import order_agent
-from agents.tracking_agent import tracking_agent
+from fastapi.responses import StreamingResponse
+import json
+from fastapi.responses import StreamingResponse
+from langchain_core.messages import (
+    HumanMessage,
+    AIMessage
+)
+
 
 app = FastAPI()
 
@@ -24,20 +28,6 @@ class ResumeRequest(BaseModel):
     thread_id:str
     answer:str
 
-from fastapi.responses import StreamingResponse
-import json
-
-from fastapi.responses import StreamingResponse
-import json
-import re
-from fastapi.responses import StreamingResponse
-from langchain_core.messages import (
-    HumanMessage,
-    AIMessage
-)
-
-import json
-import re
 
 @app.post("/chat-stream")
 def chat_stream(data: ChatRequest):
@@ -100,7 +90,7 @@ def chat_stream(data: ChatRequest):
 
     # graph memory only
 
-    graph_history = history[-8:]
+    graph_history = history[-4:]
 
     print(
         "GRAPH HISTORY:",
@@ -312,9 +302,8 @@ def chat_stream(data: ChatRequest):
         "text/event-stream"
 
     )
+
 @app.post("/resume")
-
-
 def resume(data:ResumeRequest):
 
     result = support_graph.invoke(
@@ -420,6 +409,8 @@ def get_sessions(customer_id:str):
 
     )
 
+  
+
     return docs
 
 @app.get("/history/{thread_id}")
@@ -443,6 +434,7 @@ def get_history(thread_id:str):
         "messages":[]
 
         }
+
     
 
     return {
@@ -455,3 +447,37 @@ def get_history(thread_id:str):
 
     }
 
+@app.delete("/session/{thread_id}")
+def delete_session(thread_id:str):
+
+    result = history_collection.delete_one(
+        {
+            "thread_id":
+            thread_id
+        }
+    )
+
+    if result.deleted_count == 0:
+
+        return {
+
+            "status":
+            "NOT_FOUND",
+
+            "message":
+            "Session not found"
+
+        }
+
+    return {
+
+        "status":
+        "SUCCESS",
+
+        "thread_id":
+        thread_id,
+
+        "message":
+        "Session deleted"
+
+    }

@@ -1,164 +1,66 @@
-from database.mongo import *
+from database.mongo import customers
 from datetime import datetime
-from database.mongo import *
 
-print("Cleaning collections...")
-
-customers.delete_many({})
-orders.delete_many({})
-payments.delete_many({})
-refunds.delete_many({})
-
-orders.insert_many([
-
+customers.insert_many([
 {
+"_id":"cust001",
+"name":"Ravi Kumar",
+"email":"ravi@example.com",
+"email_verified":True,
+"account_status":"ACTIVE",
+"last_login":datetime.utcnow(),
+"phone":"9876543210",
 
-"_id":"ord0003",
-
-"customer_id":"cust003",
-
-"items":[
-
-{
-
-"product_id":"p001",
-
-"name":"iPhone 15",
-
-"qty":1,
-
-"price":75000
-
-},
-
-{
-
-"product_id":"p002",
-
-"name":"AirPods",
-
-"qty":1,
-
-"price":15000
-
-}
-
-],
-
-"total_amount":90000,
-
-"currency":"INR",
-
-"payment_id":"pay001",
-
-"delivery_status":"RETURNED",
-
-"tracking_status":"IN_TRANSIT",
-
-"courier":"BlueDart",
-
-"tracking_id":"TRK001",
-
-"shipping_address":{
-
+"address":{
+"house_no":"12-45",
+"street":"MG Road",
+"area":"Ameerpet",
 "city":"Hyderabad",
-
 "state":"Telangana",
-
-"country":"India"
-
+"country":"India",
+"pincode":"500016"
+}
 },
 
-"expected_delivery":"2026-05-22",
+{
+"_id":"cust002",
+"name":"Priya Sharma",
+"email":"priya@example.com",
+"email_verified":True,
+"account_status":"ACTIVE",
+"last_login":datetime.utcnow(),
+"phone":"9876543211",
 
-"delivered_on":None,
-
-"created_at":datetime.utcnow(),
-
-"updated_at":datetime.utcnow()
-
+"address":{
+"house_no":"8-102",
+"street":"Ring Road",
+"area":"Vijay Nagar",
+"city":"Bengaluru",
+"state":"Karnataka",
+"country":"India",
+"pincode":"560040"
+}
 },
 
-
 {
+"_id":"cust003",
+"name":"Anil Reddy",
+"email":"anil@example.com",
+"email_verified":False,
+"account_status":"ACTIVE",
+"last_login":datetime.utcnow(),
+"phone":"9876543212",
 
-"_id":"ord0004",
-
-"customer_id":"cust003",
-
-"items":[
-
-{
-
-"product_id":"p003",
-
-"name":"Laptop",
-
-"qty":1,
-
-"price":65000
-
+"address":{
+"house_no":"5-78",
+"street":"Temple Street",
+"area":"Madhapur",
+"city":"Hyderabad",
+"state":"Telangana",
+"country":"India",
+"pincode":"500081"
 }
-
-],
-
-"total_amount":65000,
-
-"currency":"INR",
-
-"payment_id":"pay002",
-
-"delivery_status":"DELAYED",
-
-"tracking_status":"EXCEPTION",
-
-"courier":"Delhivery",
-
-"tracking_id":"TRK002",
-
-"expected_delivery":"2026-05-18",
-
-"delay_reason":"Courier delay",
-
-"created_at":datetime.utcnow(),
-
-"updated_at":datetime.utcnow()
-
-}
-
-])
-
-
-
-refunds.insert_many([
-
-{
-
-"_id":"ref0003",
-
-"customer_id":"cust003",
-
-"order_id":"ord0003",
-
-"payment_id":"pay001",
-
-"return_completed":True,
-
-"refund_requested":True,
-
-"refund_status":"FAILED",
-
-"refund_amount":15000,
-
-"refund_days":9,
-
-"reason":"Product returned",
-
-"requested_at":datetime.utcnow(),
-
-"processed_at":None,
-
-"finance_escalated":True
-
 }
 ])
+
+print("Customers inserted")
