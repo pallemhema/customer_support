@@ -1,4 +1,4 @@
-from typing import TypedDict
+from typing import Optional, TypedDict
 from typing import Annotated
 from langgraph.graph.message import add_messages
 
@@ -55,6 +55,12 @@ class SupportState(
 
     # follow_up
     followup:str
+
+    last_order_id: Optional[str]
+
+    last_topic: Optional[str]
+
+    last_action: Optional[str]
 
     messages:Annotated[
         list,

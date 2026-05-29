@@ -1,16 +1,24 @@
 import re
 
 def extract_order_id(
-    text
+text
 ):
 
-    match = re.search(
-        r'ord\d+',
-        text.lower()
+    matches = re.findall(
+
+        r"\bord[a-zA-Z0-9]{4,}\b",
+
+        str(text),
+
+        re.IGNORECASE
+
     )
 
-    if match:
+    if not matches:
 
-        return match.group()
+        return None
 
-    return None
+    return max(
+        matches,
+        key=len
+    )

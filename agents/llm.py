@@ -1,332 +1,4 @@
-# from langchain_groq import ChatGroq
-# from dotenv import load_dotenv
-# import os
 
-# load_dotenv()
-
-
-# MODEL_PRIORITY = [
-
-#     "qwen/qwen3-32b",
-
-#     "llama-3.3-70b-versatile",
-
-#     "deepseek-r1-distill-llama-70b"
-
-# ]
-
-
-# class LLMManager:
-
-#     """
-#     Groq model manager
-
-#     Features:
-
-#     - automatic fallback
-#     - rate limit handling
-#     - streaming support
-#     - agent support
-#     - tool support
-#     - structured output support
-#     """
-
-#     def __init__(
-
-#         self,
-
-#         max_tokens=500,
-
-#         temperature=0,
-
-#         streaming=True
-
-#     ):
-
-#         self.max_tokens = max_tokens
-
-#         self.temperature = temperature
-
-#         self.streaming = streaming
-
-#         self.current = 0
-
-#         self.model = self._create_model(
-
-#             MODEL_PRIORITY[
-#                 self.current
-#             ]
-
-#         )
-
-#     def _create_model(
-#         self,
-#         model_name
-#     ):
-
-#         kwargs = {
-
-#             "model":
-#             model_name,
-
-#             "api_key":
-#             os.getenv(
-#                 "GROQ_API_KEY"
-#             ),
-
-#             "max_tokens":
-#             self.max_tokens,
-
-#             "temperature":
-#             self.temperature,
-
-#             "streaming":
-#             self.streaming
-
-#         }
-
-#         # qwen only
-
-#         if "qwen" in model_name.lower():
-
-#             kwargs[
-#                 "reasoning_format"
-#             ] = "hidden"
-
-#         print(
-#             f"Loading model: {model_name}"
-#         )
-
-#         return ChatGroq(
-#             **kwargs
-#         )
-
-#     def switch_model(
-#         self
-#     ):
-
-#         self.current += 1
-
-#         if self.current >= len(
-#             MODEL_PRIORITY
-#         ):
-
-#             raise Exception(
-#                 "All models exhausted"
-#             )
-
-#         next_model = MODEL_PRIORITY[
-#             self.current
-#         ]
-
-#         print(
-#             f"Switching -> {next_model}"
-#         )
-
-#         self.model = self._create_model(
-#             next_model
-#         )
-
-#     def _should_switch(
-#         self,
-#         error
-#     ):
-
-#         text = str(
-#             error
-#         ).lower()
-
-#         triggers = [
-
-#             "429",
-
-#             "rate_limit",
-
-#             "tokens per day",
-
-#             "tokens per minute",
-
-#             "request too large",
-
-#             "413"
-
-#         ]
-
-#         return any(
-
-#             t in text
-
-#             for t in triggers
-
-#         )
-
-#     def invoke(
-
-#         self,
-
-#         *args,
-
-#         **kwargs
-
-#     ):
-
-#         last_error = None
-
-#         while True:
-
-#             try:
-
-#                 return self.model.invoke(
-
-#                     *args,
-
-#                     **kwargs
-
-#                 )
-
-#             except Exception as e:
-
-#                 last_error = e
-
-#                 print(
-#                     e
-#                 )
-
-#                 if self._should_switch(
-#                     e
-#                 ):
-
-#                     self.switch_model()
-
-#                     continue
-
-#                 raise e
-
-#         raise last_error
-
-#     def stream(
-
-#         self,
-
-#         *args,
-
-#         **kwargs
-
-#     ):
-
-#         last_error = None
-
-#         while True:
-
-#             try:
-
-#                 yield from self.model.stream(
-
-#                     *args,
-
-#                     **kwargs
-
-#                 )
-
-#                 return
-
-#             except Exception as e:
-
-#                 last_error = e
-
-#                 print(
-#                     e
-#                 )
-
-#                 if self._should_switch(
-#                     e
-#                 ):
-
-#                     self.switch_model()
-
-#                     continue
-
-#                 raise e
-
-#         raise last_error
-
-#     def bind(
-
-#         self,
-
-#         *args,
-
-#         **kwargs
-
-#     ):
-
-#         return self.model.bind(
-
-#             *args,
-
-#             **kwargs
-
-#         )
-
-#     def bind_tools(
-
-#         self,
-
-#         *args,
-
-#         **kwargs
-
-#     ):
-
-#         return self.model.bind_tools(
-
-#             *args,
-
-#             **kwargs
-
-#         )
-
-#     def with_structured_output(
-
-#         self,
-
-#         *args,
-
-#         **kwargs
-
-#     ):
-
-#         return self.model.with_structured_output(
-
-#             *args,
-
-#             **kwargs
-
-#         )
-
-#     def reset_model(
-#         self
-#     ):
-
-#         self.current = 0
-
-#         self.model = self._create_model(
-
-#             MODEL_PRIORITY[0]
-
-#         )
-
-#     def __getattr__(
-#         self,
-#         name
-#     ):
-
-#         return getattr(
-#             self.model,
-#             name
-#         )
-    
-# llm = LLMManager()
 
 from langchain_groq import ChatGroq
 from dotenv import load_dotenv
@@ -336,13 +8,10 @@ load_dotenv()
 
 
 MODEL_PRIORITY = [
-
-    "qwen/qwen3-32b",
-
+    
     "llama-3.3-70b-versatile",
-
-    "llama-3.1-8b-instant"
-
+    "qwen/qwen3-32b",
+    "llama-3.1-8b-instant",
 ]
 
 
@@ -377,6 +46,8 @@ class BoundLLM:
         self.kwargs = kwargs
 
     def _build(self):
+
+        self.manager._ensure_model()
 
         fn = getattr(
 
@@ -475,11 +146,17 @@ class LLMManager:
 
         self.current = 0
 
-        self.model = self._create_model(
+        self.model = None
 
-            MODEL_PRIORITY[0]
+    def _ensure_model(self):
 
-        )
+        if self.model is None:
+
+            self.model = self._create_model(
+
+                MODEL_PRIORITY[self.current]
+
+            )
 
     def _create_model(
 
@@ -613,6 +290,8 @@ class LLMManager:
 
     ):
 
+        self._ensure_model()
+
         while True:
 
             try:
@@ -648,6 +327,8 @@ class LLMManager:
         **kwargs
 
     ):
+
+        self._ensure_model()
 
         while True:
 
@@ -751,11 +432,7 @@ class LLMManager:
 
         self.current = 0
 
-        self.model = self._create_model(
-
-            MODEL_PRIORITY[0]
-
-        )
+        self.model = None
 
     def __getattr__(
 
@@ -764,6 +441,8 @@ class LLMManager:
         name
 
     ):
+
+        self._ensure_model()
 
         return getattr(
 

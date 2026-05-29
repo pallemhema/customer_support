@@ -30,8 +30,12 @@ ipykernel
 faiss-cpu
 fastapi
 uvicorn
-
+pymupdf
 pytest 
 pytest-mock 
 pytest-cov 
 pytest-benchmark
+
+aMDxF3LIxY5XjJvq
+
+HZ8vOcnqfgcOce1t

@@ -1,3 +1,5 @@
+import time
+
 from agents.response_agent import (
     response_agent
 )
@@ -15,17 +17,23 @@ def response_node(
     state
 ):
 
+    start_time = time.time()
     print(
-        "RESPONSE NODE EXECUTION"
+        "ENTER: response_node"
     )
 
-    text = ""
+    try:
+        print(
+            "RESPONSE NODE EXECUTION"
+        )
 
-    if state.get(
-        "intent"
-    ) == "greeting_intent":
+        text = ""
 
-        text += f"""
+        if state.get(
+            "intent"
+        ) == "greeting_intent":
+
+            text += f"""
 Customer greeting detected
 
 Customer message:
@@ -37,49 +45,43 @@ Respond warmly.
 Keep response short.
 """
 
-    if state.get(
-        "retrieved_docs"
-    ):
+        if state.get(
+            "retrieved_docs"
+        ):
 
-        text += "\n"
+            text += "\n"
 
-        text += str(
+            text += str(
+                state[
+                    "retrieved_docs"
+                ]
+            )
 
-            state[
-                "retrieved_docs"
-            ]
+        if state.get(
+            "escalation_result"
+        ):
 
-        )
+            text += "\n"
 
-    if state.get(
-        "escalation_result"
-    ):
+            text += str(
+                state[
+                    "escalation_result"
+                ]
+            )
 
-        text += "\n"
+        if state.get(
+            "followup"
+        ):
 
-        text += str(
+            text += "\n"
 
-            state[
-                "escalation_result"
-            ]
+            text += str(
+                state[
+                    "followup"
+                ]
+            )
 
-        )
-
-    if state.get(
-        "followup"
-    ):
-
-        text += "\n"
-
-        text += str(
-
-            state[
-                "followup"
-            ]
-
-        )
-
-    prompt = f"""
+        prompt = f"""
 Customer Query:
 
 {state['query']}
@@ -91,68 +93,68 @@ Context:
 Generate response
 """
 
-    payload = {
+        payload = {
 
-        "messages":[
+            "messages":[
 
-            (
+                (
 
-                "user",
+                    "user",
 
-                prompt
+                    prompt
 
-            )
+                )
 
-        ]
+            ]
 
-    }
+        }
 
-    response = ""
+        response = ""
 
-    try:
+        try:
 
-        for event in stream_agent_with_retry(
+            for event in stream_agent_with_retry(
 
-            response_agent,
+                response_agent,
 
-            payload,
+                payload,
 
-            stream_mode=
-            "messages"
+                stream_mode=
+                "messages"
 
-        ):
+            ):
 
-            chunk, meta = event
+                chunk, meta = event
 
-            token = getattr(
+                token = getattr(
 
-                chunk,
+                    chunk,
 
-                "content",
+                    "content",
 
-                ""
+                    ""
 
-            )
+                )
 
-            if not token:
+                if not token:
 
-                continue
+                    continue
+
+                print(
+                    "TOKEN:",
+                    token
+                )
+
+                response += token
+
+        except Exception as e:
 
             print(
-                "TOKEN:",
-                token
+                "Response failed:",
+                e
             )
 
-            response += token
-
-    except Exception as e:
-
-        print(
-            "Response failed:",
-            e
-        )
-
-        response = """
+            response = """
 
 Sorry.
 
@@ -162,13 +164,13 @@ Please try again.
 
 """
 
-    response = clean_llm_output(
-        response
-    )
+        response = clean_llm_output(
+            response
+        )
 
-    if not response.strip():
+        if not response.strip():
 
-        response = """
+            response = """
 
 No response generated.
 
@@ -176,35 +178,41 @@ Please retry.
 
 """
 
-    print(
-        "FINAL:",
-        response
-    )
+        print(
+            "FINAL:",
+            response
+        )
 
-    return {
+        return {
 
-        "response":
-        response,
+            "response":
+            response,
 
-        "messages":[
+            "messages":[
 
-            (
+                (
 
-                "user",
+                    "user",
 
-                state[
-                    "query"
-                ]
+                    state[
+                        "query"
+                    ]
 
-            ),
+                ),
 
-            (
+                (
 
-                "assistant",
+                    "assistant",
 
-                response
+                    response
 
-            )
+                )
 
-        ]
-    }
+            ]
+        }
+
+    finally:
+        elapsed = time.time() - start_time
+        print(
+            f"EXIT: response_node elapsed={elapsed:.3f}s"
+        )

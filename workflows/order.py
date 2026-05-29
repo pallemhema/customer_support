@@ -1,3 +1,5 @@
+import time
+
 from agents.order_agent import (
     order_agent
 )
@@ -6,6 +8,7 @@ from helpers.clean_text import (
     clean_llm_output
 )
 
+from helpers.extract_id import extract_order_id
 from schemas.supervisor_state_schema import (
     SupportState
 )
@@ -19,23 +22,29 @@ def order_node(
     state: SupportState
 ):
 
+    start_time = time.time()
     print(
-        "ORDER NODE EXECUTION"
+        "ENTER: order_node"
     )
 
-    query = state.get(
+    try:
+        print(
+            "ORDER NODE EXECUTION"
+        )
 
-        "resolved_query",
+        query = state.get(
 
-        state[
-            "query"
-        ]
+            "resolved_query",
 
-    )
+            state[
+                "query"
+            ]
 
-    response = ""
+        )
 
-    prompt = f"""
+        response = ""
+
+        prompt = f"""
 Customer ID:
 
 {state["customer_id"]}
@@ -65,57 +74,57 @@ Never ask customer again.
 Perform action immediately.
 """
 
-    try:
+        try:
 
-        for event in stream_agent_with_retry(
+            for event in stream_agent_with_retry(
 
-            order_agent,
+                order_agent,
 
-            {
+                {
 
-                "messages":[
+                    "messages":[
 
-                    (
+                        (
 
-                        "user",
+                            "user",
 
-                        prompt
+                            prompt
 
-                    )
+                        )
 
-                ]
+                    ]
 
-            },
+                },
 
-            stream_mode=
-            "messages"
+                stream_mode=
+                "messages"
 
-        ):
+            ):
 
-            chunk, meta = event
+                chunk, meta = event
 
-            token = getattr(
+                token = getattr(
 
-                chunk,
+                    chunk,
 
-                "content",
+                    "content",
 
-                ""
+                    ""
 
-            )
+                )
 
-            if not token:
+                if not token:
 
-                continue
+                    continue
 
-            print(
-                "TOKEN:",
-                token
-            )
+                print(
+                    "TOKEN:",
+                    token
+                )
 
-            response += token
+                response += token
 
-    except Exception as e:
+        except Exception as e:
 
             print(
                 "Order node failed:",
@@ -136,43 +145,66 @@ Perform action immediately.
         """
             }
 
-    output = clean_llm_output(
-        response
-    )
+       
 
-    print(
-        "FINAL:",
-        output
-    )
+        output = clean_llm_output(
+            response
+        )
 
-    return {
+        order_id = extract_order_id(
+            output
+        )
 
-        "response":
-        output,
+        print(
+            "FULL ORDER:",
+            order_id
+        )
 
-        "order_result":
-        output,
+        print(
+            "FINAL:",
+            output
+        )
 
-        "messages":[
+        result = {
 
-            (
+            "response":
+            output,
 
-                "user",
+            "order_result":
+            output,
 
-                state[
-                    "query"
-                ]
+            "messages":[
 
-            ),
+                (
+                    "user",
+                    state["query"]
+                ),
 
-            (
+                (
+                    "assistant",
+                    output
+                )
 
-                "assistant",
+            ]
 
-                output
+        }
 
-            )
+        # persist memory
 
-        ]
+        if order_id:
 
-    }
+            result[
+                "last_order_id"
+            ] = order_id
+
+            result[
+                "last_topic"
+            ] = "order"
+
+        return result
+
+    finally:
+        elapsed = time.time() - start_time
+        print(
+            f"EXIT: order_node elapsed={elapsed:.3f}s"
+        )

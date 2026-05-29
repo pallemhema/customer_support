@@ -1,3 +1,5 @@
+import time
+
 from schemas.sequential_state_schema import (
     SupportState
 )
@@ -18,6 +20,11 @@ from agents.agent_retry import (
 def retrieval_node(
     state: SupportState
 ):
+
+    start_time = time.time()
+    print(
+        "ENTER: retrieval_node"
+    )
 
     print(
         "retrieval_node Node execution"
@@ -131,6 +138,12 @@ Knowledge retrieval unavailable.
 Proceeding without documents.
 
 """
+
+    finally:
+        elapsed = time.time() - start_time
+        print(
+            f"EXIT: retrieval_node elapsed={elapsed:.3f}s"
+        )
 
     if not final_output.strip():
 

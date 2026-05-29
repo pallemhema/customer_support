@@ -117,7 +117,9 @@ def _create_order(
         return {
 
             "status":
-            "CUSTOMER_NOT_FOUND"
+            "CUSTOMER_NOT_FOUND",
+            "response":
+            "Customer not found"
 
         }
 
@@ -463,7 +465,9 @@ No further action needed.
 
         "OUT_FOR_DELIVERY",
 
-        "DELIVERED"
+        "DELIVERED",
+
+        "RETURNED",
 
     ]
 

@@ -1,3 +1,5 @@
+import time
+
 from schemas.supervisor_state_schema import (
     SupportState
 )
@@ -23,31 +25,37 @@ def tracking_node(
     state: SupportState
 ):
 
+    start_time = time.time()
     print(
-        "Tracking Node execution"
+        "ENTER: tracking_node"
     )
 
-    query = state.get(
-
-        "resolved_query",
-
-        state[
-            "query"
-        ]
-
-    )
-
-    order_id = state.get(
-        "order_id"
-    )
-
-    if not order_id:
-
-        order_id = extract_order_id(
-            query
+    try:
+        print(
+            "Tracking Node execution"
         )
 
-    prompt = f"""
+        query = state.get(
+
+            "resolved_query",
+
+            state[
+                "query"
+            ]
+
+        )
+
+        order_id = state.get(
+            "order_id"
+        )
+
+        if not order_id:
+
+            order_id = extract_order_id(
+                query
+            )
+
+        prompt = f"""
 Customer ID:
 
 {state["customer_id"]}
@@ -71,68 +79,68 @@ Do NOT ask again for order id.
 Track immediately.
 """
 
-    payload = {
+        payload = {
 
-        "messages":[
+            "messages":[
 
-            (
+                (
 
-                "user",
+                    "user",
 
-                prompt
+                    prompt
 
-            )
+                )
 
-        ]
+            ]
 
-    }
+        }
 
-    response = ""
+        response = ""
 
-    try:
+        try:
 
-        for event in stream_agent_with_retry(
+            for event in stream_agent_with_retry(
 
-            tracking_agent,
+                tracking_agent,
 
-            payload,
+                payload,
 
-            stream_mode=
-            "messages"
+                stream_mode=
+                "messages"
 
-        ):
+            ):
 
-            chunk, meta = event
+                chunk, meta = event
 
-            token = getattr(
+                token = getattr(
 
-                chunk,
+                    chunk,
 
-                "content",
+                    "content",
 
-                ""
+                    ""
 
-            )
+                )
 
-            if not token:
+                if not token:
 
-                continue
+                    continue
+
+                print(
+                    "TOKEN:",
+                    token
+                )
+
+                response += token
+
+        except Exception as e:
 
             print(
-                "TOKEN:",
-                token
+                "Tracking failed:",
+                e
             )
 
-            response += token
-
-    except Exception as e:
-
-        print(
-            "Tracking failed:",
-            e
-        )
-
-        response = """
+            response = """
 
 Unable to retrieve tracking information.
 
@@ -140,45 +148,51 @@ Please try again later.
 
 """
 
-    response = clean_llm_output(
-        response
-    )
+        response = clean_llm_output(
+            response
+        )
 
-    if not response.strip():
+        if not response.strip():
 
-        response = """
+            response = """
 
 Tracking information unavailable.
 
 """
 
-    return {
+        return {
 
-        "order_id":
-        order_id,
+            "order_id":
+            order_id,
 
-        "tracking_result":
-        response,
+            "tracking_result":
+            response,
 
-        "response":
-        response,
-        "messages":[
+            "response":
+            response,
+            "messages":[
 
-    (
+        (
 
-        "user",
+            "user",
 
-        state["query"]
+            state["query"]
 
-    ),
+        ),
 
-    (
+        (
 
-        "assistant",
+            "assistant",
 
-        response
+            response
 
-    )
+        )
 
-]
-    }
+    ]
+        }
+
+    finally:
+        elapsed = time.time() - start_time
+        print(
+            f"EXIT: tracking_node elapsed={elapsed:.3f}s"
+        )
